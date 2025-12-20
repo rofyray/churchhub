@@ -25,7 +25,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
     const describedBy = [errorId, helperId].filter(Boolean).join(' ') || undefined;
 
     return (
-      <div className="w-full">
+      <div className={cn("w-full", className)}>
         {label && (
           <label htmlFor={id} className="block text-sm font-medium text-text-secondary mb-2">
             {label}
@@ -39,8 +39,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
               'w-full bg-white/5 border border-white/10 rounded-xl py-3.5 pl-4 pr-10 text-white appearance-none cursor-pointer',
               'hover:border-white/20 focus:outline-none focus:border-brand-500/50 focus:ring-2 focus:ring-brand-500/20',
               'disabled:opacity-50 disabled:cursor-not-allowed transition-all',
-              error && 'border-red-500 focus:border-red-500',
-              className
+              error && 'border-red-500 focus:border-red-500'
             )}
             aria-invalid={error ? 'true' : undefined}
             aria-describedby={describedBy}

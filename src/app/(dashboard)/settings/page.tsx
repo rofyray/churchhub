@@ -3,7 +3,24 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardHeader, CardTitle, Button, Modal, Input, Select, QRCodeDisplay, useToast } from '@/components/ui';
-import { deleteAdminAccount, deleteChurch, createRegistrationToken } from '@/lib/firebase/firestore';
+import {
+  deleteAdminAccount,
+  deleteChurch,
+  createRegistrationToken,
+  getMembersWithAbsenceCounts,
+  getAttendanceRecords,
+  getYTDTithes,
+  getChurch,
+} from '@/lib/firebase/firestore';
+import {
+  exportMembersToPDF,
+  exportMembersToCSV,
+  exportAttendanceToPDF,
+  exportAttendanceToCSV,
+  exportFinanceToPDF,
+  exportFinanceToCSV,
+  ExportFormat,
+} from '@/lib/utils/export';
 
 export default function SettingsPage() {
   const { user, adminData, signOut } = useAuth();
@@ -18,6 +35,11 @@ export default function SettingsPage() {
   const [expirationMinutes, setExpirationMinutes] = useState(10);
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
   const [generatingToken, setGeneratingToken] = useState(false);
+
+  // Export states
+  const [exporting, setExporting] = useState(false);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>('pdf');
+  const [exportType, setExportType] = useState<'members' | 'attendance' | 'finance'>('members');
 
   const handleDeleteAdmin = async () => {
     if (!user?.uid) return;
@@ -111,6 +133,49 @@ export default function SettingsPage() {
     img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
   };
 
+  // Export handler
+  const handleExport = async () => {
+    if (!adminData?.churchId) return;
+
+    setExporting(true);
+    try {
+      const church = await getChurch(adminData.churchId);
+      const options = { churchName: church?.name || 'Church', exportDate: new Date() };
+
+      switch (exportType) {
+        case 'members': {
+          const members = await getMembersWithAbsenceCounts(adminData.churchId);
+          exportFormat === 'pdf'
+            ? exportMembersToPDF({ members, options })
+            : exportMembersToCSV({ members, options });
+          break;
+        }
+        case 'attendance': {
+          const records = await getAttendanceRecords(adminData.churchId, 100);
+          exportFormat === 'pdf'
+            ? exportAttendanceToPDF({ records, options })
+            : exportAttendanceToCSV({ records, options });
+          break;
+        }
+        case 'finance': {
+          const tithes = await getYTDTithes(adminData.churchId);
+          const totalAmount = tithes.reduce((sum, t) => sum + t.amount, 0);
+          exportFormat === 'pdf'
+            ? exportFinanceToPDF({ tithes, totalAmount, options })
+            : exportFinanceToCSV({ tithes, totalAmount, options });
+          break;
+        }
+      }
+
+      success(`Exported ${exportType} as ${exportFormat.toUpperCase()}`);
+    } catch (err) {
+      console.error('Export error:', err);
+      showError('Failed to export data. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // For now, use a placeholder church name since we don't have it in adminData
   const churchName = 'DELETE';
 
@@ -181,29 +246,42 @@ export default function SettingsPage() {
         <p className="text-slate-300 mb-4">
           Export your church data for backup or reporting purposes.
         </p>
-        <div className="flex flex-wrap gap-3">
-          <Button variant="secondary" disabled>
+        <div className="flex items-end gap-3">
+          <Select
+            label="Format"
+            value={exportFormat}
+            onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
+            options={[
+              { value: 'pdf', label: 'PDF' },
+              { value: 'csv', label: 'CSV' },
+            ]}
+            className="w-24"
+          />
+          <Select
+            label="Data"
+            value={exportType}
+            onChange={(e) => setExportType(e.target.value as 'members' | 'attendance' | 'finance')}
+            options={[
+              { value: 'members', label: 'Members' },
+              { value: 'attendance', label: 'Attendance' },
+              { value: 'finance', label: 'Finance (YTD)' },
+            ]}
+            className="w-44"
+          />
+          <Button
+            variant="primary"
+            size="lg"
+            className="ml-auto"
+            onClick={handleExport}
+            loading={exporting}
+            loadingText="Exporting..."
+          >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            Export Members (PDF)
-          </Button>
-          <Button variant="secondary" disabled>
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Export Attendance (PDF)
-          </Button>
-          <Button variant="secondary" disabled>
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Export Finance (PDF)
+            Export
           </Button>
         </div>
-        <p className="text-sm text-slate-500 mt-3">
-          Coming soon: PDF export functionality
-        </p>
       </Card>
 
       {/* Member Self-Registration */}

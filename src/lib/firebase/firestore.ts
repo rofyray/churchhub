@@ -23,10 +23,22 @@ import {
   DEPARTMENTS,
   RegistrationToken,
   PendingMember,
+  Church,
 } from '@/lib/types';
 
 // Helper to get church collection path
 const getChurchPath = (churchId: string) => `churches/${churchId}`;
+
+// ==================== CHURCH ====================
+
+export async function getChurch(churchId: string): Promise<Church | null> {
+  const docRef = doc(db, 'churches', churchId);
+  const snapshot = await getDoc(docRef);
+  if (snapshot.exists()) {
+    return { id: snapshot.id, ...snapshot.data() } as Church;
+  }
+  return null;
+}
 
 // ==================== DEPARTMENTS ====================
 
