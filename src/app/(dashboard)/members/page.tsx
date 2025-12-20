@@ -11,12 +11,13 @@ import {
   rejectPendingMember,
 } from '@/lib/firebase/firestore';
 import { uploadMemberPhoto } from '@/lib/firebase/storage';
-import { Button, Modal, Card, useToast } from '@/components/ui';
+import { Button, Modal, Card, useToast, Avatar } from '@/components/ui';
 import MemberList from '@/components/members/MemberList';
 import MemberForm from '@/components/members/MemberForm';
 import PendingMemberList from '@/components/members/PendingMemberList';
 import { Member, Department, MemberFormData, PendingMember } from '@/lib/types';
 import { Timestamp } from 'firebase/firestore';
+import { formatPhoneNumber } from '@/lib/utils/format';
 
 export default function MembersPage() {
   const { adminData, user } = useAuth();
@@ -322,19 +323,14 @@ export default function MembersPage() {
               <div className="flex items-start gap-6">
                 {/* Avatar */}
                 <div className="flex-shrink-0">
-                  {selectedMember.photoUrl ? (
-                    <img
-                      src={selectedMember.photoUrl}
-                      alt={`${selectedMember.firstName} ${selectedMember.lastName}`}
-                      className="w-24 h-24 rounded-full object-cover border-2 border-white/10"
-                    />
-                  ) : (
-                    <div className="w-24 h-24 rounded-full bg-brand-600/20 flex items-center justify-center border-2 border-white/10">
-                      <span className="text-2xl font-semibold text-brand-300">
-                        {selectedMember.firstName[0]}{selectedMember.lastName[0]}
-                      </span>
-                    </div>
-                  )}
+                  <Avatar
+                    src={selectedMember.photoUrl}
+                    name={`${selectedMember.firstName} ${selectedMember.lastName}`}
+                    size="xl"
+                    showBadge={(selectedMember.absenceCount ?? 0) >= 1}
+                    badgeColor={selectedMember.flagged ? "danger" : "warning"}
+                    className="w-24 h-24"
+                  />
                 </div>
 
                 {/* Info */}
@@ -357,7 +353,7 @@ export default function MembersPage() {
                           href={`tel:+233${selectedMember.phone}`}
                           className="text-brand-400 hover:text-brand-300 transition-colors"
                         >
-                          +233 {selectedMember.phone}
+                          {formatPhoneNumber(selectedMember.phone)}
                         </a>
                       ) : (
                         <p className="text-white">-</p>

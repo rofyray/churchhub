@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { getDepartments, getMembersByDepartmentWithAbsenceCounts } from '@/lib/firebase/firestore';
 import { Card, Badge, Modal } from '@/components/ui';
 import { Department, Member } from '@/lib/types';
+import { formatPhoneNumber } from '@/lib/utils/format';
 
 export default function DepartmentsPage() {
   const { adminData } = useAuth();
@@ -236,11 +237,11 @@ export default function DepartmentsPage() {
                   <p className="font-medium text-white">
                     {member.firstName} {member.lastName}
                   </p>
-                  <p className="text-sm text-slate-400">+233 {member.phone}</p>
+                  <p className="text-sm text-slate-400">{formatPhoneNumber(member.phone)}</p>
                 </div>
-                {member.flagged && (
-                  <Badge variant="danger" size="sm">
-                    {member.absenceCount ?? 2} {(member.absenceCount ?? 2) === 1 ? 'absence' : 'absences'}
+                {(member.absenceCount ?? 0) >= 1 && (
+                  <Badge variant={member.flagged ? "danger" : "warning"} size="sm">
+                    {member.absenceCount} {member.absenceCount === 1 ? 'absence' : 'absences'}
                   </Badge>
                 )}
               </div>

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Card, Button, Modal, Input, Spinner } from '@/components/ui';
 import { PendingMember } from '@/lib/types';
+import { formatPhoneNumber } from '@/lib/utils/format';
 
 interface PendingMemberListProps {
   members: PendingMember[];
@@ -112,7 +113,7 @@ export default function PendingMemberList({
                   </p>
                 </button>
                 <p className="text-sm text-slate-400 truncate">
-                  {member.departmentName} &middot; +233{member.phone}
+                  {member.departmentName} &middot; {formatPhoneNumber(member.phone)}
                 </p>
                 <p className="text-xs text-slate-500 mt-1">
                   Submitted {formatDate(member.submittedAt)}
@@ -237,7 +238,7 @@ export default function PendingMemberList({
             <div className="grid grid-cols-2 gap-4 py-4 border-t border-white/10">
               <div>
                 <p className="text-xs text-slate-500 uppercase tracking-wide">Phone</p>
-                <p className="text-white mt-1">+233{selectedMember.phone}</p>
+                <p className="text-white mt-1">{formatPhoneNumber(selectedMember.phone)}</p>
               </div>
               {selectedMember.email && (
                 <div>

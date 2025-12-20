@@ -178,20 +178,5 @@ export interface PublicRegistrationFormData {
   photo?: File;
 }
 
-// Predefined departments
-export const DEPARTMENTS = [
-  'Worship & Music',
-  'Ushering',
-  'Media & Tech',
-  'Children Ministry',
-  'Youth Ministry',
-  'Women Fellowship',
-  'Men Fellowship',
-  'Prayer Team',
-  'Evangelism',
-  'Hospitality',
-  'Sanctuary Keepers',
-  'Counseling',
-  'Community Outreach',
-  'Administration',
-] as const;
+// Re-export departments from data file for backward compatibility
+export { DEPARTMENTS, type DepartmentName } from '@/lib/data/departments';
