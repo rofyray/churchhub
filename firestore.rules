@@ -1,0 +1,48 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper to check if user is admin of this church
+    function isChurchAdmin(churchId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.churchId == churchId;
+    }
+
+    // Admins collection (top-level)
+    match /admins/{adminId} {
+      allow read: if isAuthenticated() && request.auth.uid == adminId;
+      allow write: if false; // Only via Admin SDK or Firebase Console
+    }
+
+    // Churches and all subcollections
+    match /churches/{churchId} {
+      allow read, write: if isChurchAdmin(churchId);
+
+      // Departments
+      match /departments/{deptId} {
+        allow read, write: if isChurchAdmin(churchId);
+      }
+
+      // Members
+      match /members/{memberId} {
+        allow read, write: if isChurchAdmin(churchId);
+      }
+
+      // Attendance
+      match /attendance/{recordId} {
+        allow read, write: if isChurchAdmin(churchId);
+      }
+
+      // Tithes
+      match /tithes/{titheId} {
+        allow read, write: if isChurchAdmin(churchId);
+      }
+    }
+  }
+}
