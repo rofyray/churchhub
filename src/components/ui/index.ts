@@ -18,3 +18,4 @@ export { ToastProvider, useToast } from './Toast';
 // Interactive Components
 export { default as IconButton } from './IconButton';
 export { default as Avatar, AvatarGroup } from './Avatar';
+export { default as QRCodeDisplay } from './QRCodeDisplay';

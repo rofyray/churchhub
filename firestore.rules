@@ -14,6 +14,14 @@ service cloud.firestore {
         get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.churchId == churchId;
     }
 
+    // Helper to validate a registration token
+    function isValidToken(churchId, tokenId) {
+      let tokenPath = /databases/$(database)/documents/churches/$(churchId)/registrationTokens/$(tokenId);
+      return exists(tokenPath) &&
+        get(tokenPath).data.isActive == true &&
+        get(tokenPath).data.expiresAt > request.time;
+    }
+
     // Admins collection (top-level)
     match /admins/{adminId} {
       allow read: if isAuthenticated() && request.auth.uid == adminId;
@@ -24,9 +32,10 @@ service cloud.firestore {
     match /churches/{churchId} {
       allow read, write: if isChurchAdmin(churchId);
 
-      // Departments
+      // Departments - allow public read for join form dropdown
       match /departments/{deptId} {
-        allow read, write: if isChurchAdmin(churchId);
+        allow read: if true;
+        allow write: if isChurchAdmin(churchId);
       }
 
       // Members
@@ -42,6 +51,21 @@ service cloud.firestore {
       // Tithes
       match /tithes/{titheId} {
         allow read, write: if isChurchAdmin(churchId);
+      }
+
+      // Registration Tokens
+      match /registrationTokens/{tokenId} {
+        allow read, write: if isChurchAdmin(churchId);
+        allow get: if true; // Public can read single token for validation
+      }
+
+      // Pending Members
+      match /pendingMembers/{pendingId} {
+        allow read, write: if isChurchAdmin(churchId);
+        // Public can create if they have a valid token
+        allow create: if request.resource.data.tokenId != null &&
+          isValidToken(churchId, request.resource.data.tokenId) &&
+          request.resource.data.status == 'pending';
       }
     }
   }

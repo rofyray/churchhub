@@ -4,16 +4,22 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useMembers } from '@/lib/hooks/useMembers';
-import { getDepartments } from '@/lib/firebase/firestore';
+import {
+  getDepartments,
+  getPendingMembers,
+  approvePendingMember,
+  rejectPendingMember,
+} from '@/lib/firebase/firestore';
 import { uploadMemberPhoto } from '@/lib/firebase/storage';
 import { Button, Modal, Card, useToast } from '@/components/ui';
 import MemberList from '@/components/members/MemberList';
 import MemberForm from '@/components/members/MemberForm';
-import { Member, Department, MemberFormData } from '@/lib/types';
+import PendingMemberList from '@/components/members/PendingMemberList';
+import { Member, Department, MemberFormData, PendingMember } from '@/lib/types';
 import { Timestamp } from 'firebase/firestore';
 
 export default function MembersPage() {
-  const { adminData } = useAuth();
+  const { adminData, user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { members, loading, error, addMember, editMember, removeMember, refetch } = useMembers();
@@ -25,6 +31,11 @@ export default function MembersPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Pending members state
+  const [activeTab, setActiveTab] = useState<'members' | 'pending'>('members');
+  const [pendingMembers, setPendingMembers] = useState<PendingMember[]>([]);
+  const [pendingLoading, setPendingLoading] = useState(false);
 
   // Check for action=add in URL
   useEffect(() => {
@@ -47,6 +58,65 @@ export default function MembersPage() {
     }
     loadDepartments();
   }, [adminData?.churchId]);
+
+  // Load pending members when tab changes to pending
+  useEffect(() => {
+    async function loadPending() {
+      if (!adminData?.churchId || activeTab !== 'pending') return;
+      setPendingLoading(true);
+      try {
+        const pending = await getPendingMembers(adminData.churchId);
+        setPendingMembers(pending);
+      } catch (err) {
+        console.error('Error loading pending members:', err);
+      } finally {
+        setPendingLoading(false);
+      }
+    }
+    loadPending();
+  }, [adminData?.churchId, activeTab]);
+
+  // Load pending count for badge on initial load
+  useEffect(() => {
+    async function loadPendingCount() {
+      if (!adminData?.churchId) return;
+      try {
+        const pending = await getPendingMembers(adminData.churchId);
+        setPendingMembers(pending);
+      } catch (err) {
+        console.error('Error loading pending count:', err);
+      }
+    }
+    loadPendingCount();
+  }, [adminData?.churchId]);
+
+  // Pending member handlers
+  const handleApprovePending = async (member: PendingMember) => {
+    if (!adminData?.churchId || !user?.uid) return;
+
+    try {
+      await approvePendingMember(adminData.churchId, member.id, user.uid);
+      setPendingMembers((prev) => prev.filter((p) => p.id !== member.id));
+      refetch();
+      success(`${member.firstName} ${member.lastName} approved!`);
+    } catch (err) {
+      console.error('Approval error:', err);
+      showError('Failed to approve member');
+    }
+  };
+
+  const handleRejectPending = async (member: PendingMember, reason?: string) => {
+    if (!adminData?.churchId || !user?.uid) return;
+
+    try {
+      await rejectPendingMember(adminData.churchId, member.id, user.uid, reason);
+      setPendingMembers((prev) => prev.filter((p) => p.id !== member.id));
+      success('Registration rejected');
+    } catch (err) {
+      console.error('Rejection error:', err);
+      showError('Failed to reject registration');
+    }
+  };
 
   const handleAddMember = async (formData: MemberFormData) => {
     if (!adminData?.churchId) return;
@@ -148,6 +218,35 @@ export default function MembersPage() {
         </Button>
       </div>
 
+      {/* Tab Navigation */}
+      <div className="flex gap-1 p-1 bg-white/5 rounded-xl w-fit">
+        <button
+          onClick={() => setActiveTab('members')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            activeTab === 'members'
+              ? 'bg-brand-600 text-white'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          Members ({members.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('pending')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === 'pending'
+              ? 'bg-brand-600 text-white'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          Pending
+          {pendingMembers.length > 0 && (
+            <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded-full text-xs">
+              {pendingMembers.length}
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* Error state */}
       {error && (
         <Card className="p-4 border-red-500/30 bg-red-500/5">
@@ -155,13 +254,22 @@ export default function MembersPage() {
         </Card>
       )}
 
-      {/* Member List */}
-      <MemberList
-        members={members}
-        departments={departments}
-        loading={loading}
-        onMemberClick={handleMemberClick}
-      />
+      {/* Content based on active tab */}
+      {activeTab === 'members' ? (
+        <MemberList
+          members={members}
+          departments={departments}
+          loading={loading}
+          onMemberClick={handleMemberClick}
+        />
+      ) : (
+        <PendingMemberList
+          members={pendingMembers}
+          loading={pendingLoading}
+          onApprove={handleApprovePending}
+          onReject={handleRejectPending}
+        />
+      )}
 
       {/* Add Member Modal */}
       <Modal

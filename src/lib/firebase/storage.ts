@@ -42,6 +42,40 @@ export async function deleteMemberPhoto(
 }
 
 /**
+ * Upload a pending member photo to Firebase Storage (public write)
+ */
+export async function uploadPendingMemberPhoto(
+  churchId: string,
+  pendingId: string,
+  file: File
+): Promise<string> {
+  const compressedFile = await compressImage(file, 800, 0.8);
+  const fileRef = ref(storage, `churches/${churchId}/pending/${pendingId}/profile.jpg`);
+
+  await uploadBytes(fileRef, compressedFile, {
+    contentType: 'image/jpeg',
+  });
+
+  return getDownloadURL(fileRef);
+}
+
+/**
+ * Delete a pending member photo from Firebase Storage
+ */
+export async function deletePendingMemberPhoto(
+  churchId: string,
+  pendingId: string
+): Promise<void> {
+  const fileRef = ref(storage, `churches/${churchId}/pending/${pendingId}/profile.jpg`);
+
+  try {
+    await deleteObject(fileRef);
+  } catch (err) {
+    console.warn('Could not delete pending photo:', err);
+  }
+}
+
+/**
  * Compress an image file using canvas
  */
 async function compressImage(

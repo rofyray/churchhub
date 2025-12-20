@@ -2,17 +2,22 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Card, CardHeader, CardTitle, Button, Modal, Input, useToast } from '@/components/ui';
-import { deleteAdminAccount, deleteChurch } from '@/lib/firebase/firestore';
+import { Card, CardHeader, CardTitle, Button, Modal, Input, Select, QRCodeDisplay, useToast } from '@/components/ui';
+import { deleteAdminAccount, deleteChurch, createRegistrationToken } from '@/lib/firebase/firestore';
 
 export default function SettingsPage() {
   const { user, adminData, signOut } = useAuth();
-  const { error: showError } = useToast();
+  const { error: showError, success } = useToast();
   const [showDeleteAdmin, setShowDeleteAdmin] = useState(false);
   const [showDeleteChurch, setShowDeleteChurch] = useState(false);
   const [churchNameConfirm, setChurchNameConfirm] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Token generation state
+  const [expirationMinutes, setExpirationMinutes] = useState(10);
+  const [generatedToken, setGeneratedToken] = useState<string | null>(null);
+  const [generatingToken, setGeneratingToken] = useState(false);
 
   const handleDeleteAdmin = async () => {
     if (!user?.uid) return;
@@ -50,8 +55,69 @@ export default function SettingsPage() {
     }
   };
 
+  // Token generation handler
+  const handleGenerateToken = async () => {
+    if (!adminData?.churchId || !user?.uid) return;
+
+    setGeneratingToken(true);
+    try {
+      const tokenId = await createRegistrationToken(
+        adminData.churchId,
+        user.uid,
+        expirationMinutes
+      );
+
+      // Create the full token (churchId_tokenId format)
+      const fullToken = `${adminData.churchId}_${tokenId}`;
+      setGeneratedToken(fullToken);
+      success('Registration link generated successfully');
+    } catch (error) {
+      console.error('Error generating token:', error);
+      showError('Failed to generate registration link');
+    } finally {
+      setGeneratingToken(false);
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (generatedToken) {
+      const url = `${window.location.origin}/join?t=${generatedToken}`;
+      navigator.clipboard.writeText(url);
+      success('Link copied to clipboard');
+    }
+  };
+
+  const handleDownloadQR = () => {
+    const svg = document.querySelector('.qr-code-container svg');
+    if (!svg) return;
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const img = new Image();
+
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx?.drawImage(img, 0, 0);
+
+      const link = document.createElement('a');
+      link.download = 'registration-qr-code.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      success('QR code downloaded');
+    };
+
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+  };
+
   // For now, use a placeholder church name since we don't have it in adminData
   const churchName = 'DELETE';
+
+  // Get the registration URL
+  const registrationUrl = generatedToken
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/join?t=${generatedToken}`
+    : '';
 
   return (
     <div className="space-y-6">
@@ -138,6 +204,81 @@ export default function SettingsPage() {
         <p className="text-sm text-slate-500 mt-3">
           Coming soon: PDF export functionality
         </p>
+      </Card>
+
+      {/* Member Self-Registration */}
+      <Card className="p-6">
+        <CardHeader>
+          <CardTitle>Member Self-Registration</CardTitle>
+        </CardHeader>
+        <p className="text-slate-300 mb-4">
+          Generate a temporary registration link that new members can use to register themselves.
+          The link will expire after the specified time. Submissions require your approval before
+          members are added to the system.
+        </p>
+
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-sm font-medium text-slate-400 mb-2">
+              Link expires in
+            </label>
+            <Select
+              value={String(expirationMinutes)}
+              onChange={(e) => setExpirationMinutes(Number(e.target.value))}
+              options={[
+                { value: '5', label: '5 minutes' },
+                { value: '10', label: '10 minutes' },
+                { value: '15', label: '15 minutes' },
+                { value: '30', label: '30 minutes' },
+                { value: '60', label: '1 hour' },
+              ]}
+            />
+          </div>
+          <Button onClick={handleGenerateToken} loading={generatingToken} loadingText="Generating...">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+            Generate Link
+          </Button>
+        </div>
+
+        {/* Generated Link Display */}
+        {generatedToken && (
+          <div className="mt-6 p-4 bg-white/5 rounded-xl border border-white/10">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm font-medium text-white">Registration Link</p>
+              <div className="flex gap-2">
+                <Button size="sm" variant="secondary" onClick={handleCopyLink}>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  Copy Link
+                </Button>
+                <Button size="sm" variant="secondary" onClick={handleDownloadQR}>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download QR
+                </Button>
+              </div>
+            </div>
+
+            <code className="block text-sm text-brand-300 break-all mb-4 p-2 bg-black/20 rounded">
+              {registrationUrl}
+            </code>
+
+            {/* QR Code */}
+            <div className="qr-code-container flex justify-center p-4 bg-white rounded-lg">
+              <QRCodeDisplay value={registrationUrl} size={200} />
+            </div>
+
+            <p className="text-xs text-slate-500 text-center mt-3">
+              Scan this QR code or share the link to open the registration form.
+              <br />
+              Expires in {expirationMinutes} minutes from generation.
+            </p>
+          </div>
+        )}
       </Card>
 
       {/* Danger Zone */}

@@ -131,6 +131,53 @@ export interface PendingSyncItem {
   timestamp: number;
 }
 
+// Registration Token for self-registration
+export interface RegistrationToken {
+  id: string;
+  churchId: string;
+  createdBy: string;
+  createdAt: Timestamp;
+  expiresAt: Timestamp;
+  isActive: boolean;
+  usageCount: number;
+}
+
+// Pending Member (awaiting approval)
+export interface PendingMember {
+  id: string;
+  tokenId: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phone: string;
+  gender?: Gender;
+  dob?: Timestamp | null;
+  departmentId: string;
+  departmentName: string;
+  residence?: string;
+  notes?: string;
+  photoUrl?: string;
+  submittedAt: Timestamp;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewedBy?: string;
+  reviewedAt?: Timestamp;
+  rejectionReason?: string;
+}
+
+// Form data for public registration
+export interface PublicRegistrationFormData {
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phone: string;
+  gender?: Gender;
+  dob?: string;
+  departmentId: string;
+  residence?: string;
+  notes?: string;
+  photo?: File;
+}
+
 // Predefined departments
 export const DEPARTMENTS = [
   'Worship & Music',

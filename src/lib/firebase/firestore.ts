@@ -15,7 +15,15 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from './config';
-import { Member, Department, AttendanceRecord, TitheRecord, DEPARTMENTS } from '@/lib/types';
+import {
+  Member,
+  Department,
+  AttendanceRecord,
+  TitheRecord,
+  DEPARTMENTS,
+  RegistrationToken,
+  PendingMember,
+} from '@/lib/types';
 
 // Helper to get church collection path
 const getChurchPath = (churchId: string) => `churches/${churchId}`;
@@ -438,4 +446,192 @@ export async function deleteChurch(churchId: string): Promise<void> {
   // Delete the church document itself
   const churchRef = doc(db, 'churches', churchId);
   await deleteDoc(churchRef);
+}
+
+// ==================== REGISTRATION TOKENS ====================
+
+export async function createRegistrationToken(
+  churchId: string,
+  adminUid: string,
+  expirationMinutes: number = 10
+): Promise<string> {
+  const tokensRef = collection(db, getChurchPath(churchId), 'registrationTokens');
+
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + expirationMinutes * 60 * 1000);
+
+  const docRef = await addDoc(tokensRef, {
+    churchId,
+    createdBy: adminUid,
+    createdAt: serverTimestamp(),
+    expiresAt: Timestamp.fromDate(expiresAt),
+    isActive: true,
+    usageCount: 0,
+  });
+
+  return docRef.id;
+}
+
+export async function getRegistrationToken(
+  churchId: string,
+  tokenId: string
+): Promise<RegistrationToken | null> {
+  const docRef = doc(db, getChurchPath(churchId), 'registrationTokens', tokenId);
+  const snapshot = await getDoc(docRef);
+
+  if (snapshot.exists()) {
+    return { id: snapshot.id, ...snapshot.data() } as RegistrationToken;
+  }
+  return null;
+}
+
+export async function validateToken(
+  churchId: string,
+  tokenId: string
+): Promise<{ valid: boolean; error?: string }> {
+  const token = await getRegistrationToken(churchId, tokenId);
+
+  if (!token) {
+    return { valid: false, error: 'Token not found' };
+  }
+
+  if (!token.isActive) {
+    return { valid: false, error: 'Token has been deactivated' };
+  }
+
+  const now = new Date();
+  const expiresAt = token.expiresAt.toDate();
+
+  if (now > expiresAt) {
+    return { valid: false, error: 'Token has expired' };
+  }
+
+  return { valid: true };
+}
+
+export async function deactivateToken(churchId: string, tokenId: string): Promise<void> {
+  const docRef = doc(db, getChurchPath(churchId), 'registrationTokens', tokenId);
+  await updateDoc(docRef, { isActive: false });
+}
+
+export async function getActiveTokens(churchId: string): Promise<RegistrationToken[]> {
+  const tokensRef = collection(db, getChurchPath(churchId), 'registrationTokens');
+  const q = query(tokensRef, where('isActive', '==', true), orderBy('createdAt', 'desc'));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as RegistrationToken));
+}
+
+async function incrementTokenUsage(churchId: string, tokenId: string): Promise<void> {
+  const docRef = doc(db, getChurchPath(churchId), 'registrationTokens', tokenId);
+  const tokenDoc = await getDoc(docRef);
+
+  if (tokenDoc.exists()) {
+    await updateDoc(docRef, {
+      usageCount: (tokenDoc.data().usageCount || 0) + 1,
+    });
+  }
+}
+
+// ==================== PENDING MEMBERS ====================
+
+export async function getPublicDepartments(churchId: string): Promise<Department[]> {
+  const deptRef = collection(db, getChurchPath(churchId), 'departments');
+  const snapshot = await getDocs(query(deptRef, orderBy('name')));
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Department));
+}
+
+export async function submitPendingMember(
+  churchId: string,
+  tokenId: string,
+  data: Omit<PendingMember, 'id' | 'tokenId' | 'submittedAt' | 'status'>
+): Promise<string> {
+  const pendingRef = collection(db, getChurchPath(churchId), 'pendingMembers');
+
+  const docRef = await addDoc(pendingRef, {
+    ...data,
+    tokenId,
+    submittedAt: serverTimestamp(),
+    status: 'pending',
+  });
+
+  // Increment token usage count
+  await incrementTokenUsage(churchId, tokenId);
+
+  return docRef.id;
+}
+
+export async function getPendingMembers(churchId: string): Promise<PendingMember[]> {
+  const pendingRef = collection(db, getChurchPath(churchId), 'pendingMembers');
+  const q = query(pendingRef, where('status', '==', 'pending'), orderBy('submittedAt', 'desc'));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as PendingMember));
+}
+
+export async function getPendingMembersCount(churchId: string): Promise<number> {
+  const pendingRef = collection(db, getChurchPath(churchId), 'pendingMembers');
+  const q = query(pendingRef, where('status', '==', 'pending'));
+  const snapshot = await getDocs(q);
+  return snapshot.size;
+}
+
+export async function approvePendingMember(
+  churchId: string,
+  pendingId: string,
+  adminUid: string
+): Promise<string> {
+  const pendingRef = doc(db, getChurchPath(churchId), 'pendingMembers', pendingId);
+  const pendingDoc = await getDoc(pendingRef);
+
+  if (!pendingDoc.exists()) {
+    throw new Error('Pending member not found');
+  }
+
+  const pendingData = pendingDoc.data() as PendingMember;
+
+  // Create the actual member
+  const memberId = await createMember(churchId, {
+    firstName: pendingData.firstName,
+    lastName: pendingData.lastName,
+    email: pendingData.email || '',
+    phone: pendingData.phone,
+    gender: pendingData.gender,
+    dob: pendingData.dob,
+    joinedDate: Timestamp.now(),
+    joinedVia: 'Self-Registration',
+    departmentId: pendingData.departmentId,
+    departmentName: pendingData.departmentName,
+    residence: pendingData.residence || '',
+    photoUrl: pendingData.photoUrl || '',
+    notes: pendingData.notes || '',
+  });
+
+  // Update pending status
+  await updateDoc(pendingRef, {
+    status: 'approved',
+    reviewedBy: adminUid,
+    reviewedAt: serverTimestamp(),
+  });
+
+  return memberId;
+}
+
+export async function rejectPendingMember(
+  churchId: string,
+  pendingId: string,
+  adminUid: string,
+  reason?: string
+): Promise<void> {
+  const pendingRef = doc(db, getChurchPath(churchId), 'pendingMembers', pendingId);
+
+  await updateDoc(pendingRef, {
+    status: 'rejected',
+    reviewedBy: adminUid,
+    reviewedAt: serverTimestamp(),
+    rejectionReason: reason || '',
+  });
+}
+
+export async function deletePendingMember(churchId: string, pendingId: string): Promise<void> {
+  const docRef = doc(db, getChurchPath(churchId), 'pendingMembers', pendingId);
+  await deleteDoc(docRef);
 }
