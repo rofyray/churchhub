@@ -65,6 +65,7 @@ export default function FinancePage() {
         setTithes(tithesList);
       } catch (err) {
         console.error('Error loading data:', err);
+        showError('Failed to load finance data');
       } finally {
         setLoading(false);
       }

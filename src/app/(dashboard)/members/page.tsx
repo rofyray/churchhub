@@ -55,6 +55,7 @@ export default function MembersPage() {
         setDepartments(depts);
       } catch (err) {
         console.error('Error loading departments:', err);
+        showError('Failed to load departments');
       }
     }
     loadDepartments();
@@ -70,6 +71,7 @@ export default function MembersPage() {
         setPendingMembers(pending);
       } catch (err) {
         console.error('Error loading pending members:', err);
+        showError('Failed to load pending members');
       } finally {
         setPendingLoading(false);
       }
@@ -86,6 +88,7 @@ export default function MembersPage() {
         setPendingMembers(pending);
       } catch (err) {
         console.error('Error loading pending count:', err);
+        showError('Failed to load pending members');
       }
     }
     loadPendingCount();

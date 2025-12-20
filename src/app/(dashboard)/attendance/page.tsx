@@ -46,6 +46,7 @@ export default function AttendancePage() {
         setHasChanges(false);
       } catch (err) {
         console.error('Error loading data:', err);
+        showError('Failed to load attendance data');
       } finally {
         setLoading(false);
       }

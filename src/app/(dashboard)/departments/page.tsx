@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getDepartments, getMembersByDepartmentWithAbsenceCounts } from '@/lib/firebase/firestore';
-import { Card, Badge, Modal } from '@/components/ui';
+import { Card, Badge, Modal, useToast } from '@/components/ui';
 import { Department, Member } from '@/lib/types';
 import { formatPhoneNumber } from '@/lib/utils/format';
 
 export default function DepartmentsPage() {
   const { adminData } = useAuth();
+  const { error: showError } = useToast();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDept, setSelectedDept] = useState<Department | null>(null);
@@ -27,6 +28,7 @@ export default function DepartmentsPage() {
         setDepartments(depts);
       } catch (err) {
         console.error('Error loading departments:', err);
+        showError('Failed to load departments');
       } finally {
         setLoading(false);
       }
@@ -44,6 +46,7 @@ export default function DepartmentsPage() {
       setDeptMembers(members);
     } catch (err) {
       console.error('Error loading department members:', err);
+      showError('Failed to load department members');
     } finally {
       setLoadingMembers(false);
     }
