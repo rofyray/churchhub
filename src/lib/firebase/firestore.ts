@@ -71,6 +71,33 @@ export async function getMembersByDepartment(churchId: string, departmentId: str
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Member));
 }
 
+// Helper to enrich members with fresh YTD absence counts
+async function enrichMembersWithAbsenceCounts(
+  churchId: string,
+  members: Member[]
+): Promise<Member[]> {
+  const absenceCounts = await getYTDAbsenceCounts(churchId);
+
+  return members.map((member) => ({
+    ...member,
+    absenceCount: absenceCounts[member.id] ?? 0,
+    flagged: (absenceCounts[member.id] ?? 0) >= 2,
+  }));
+}
+
+export async function getMembersWithAbsenceCounts(churchId: string): Promise<Member[]> {
+  const members = await getMembers(churchId);
+  return enrichMembersWithAbsenceCounts(churchId, members);
+}
+
+export async function getMembersByDepartmentWithAbsenceCounts(
+  churchId: string,
+  departmentId: string
+): Promise<Member[]> {
+  const members = await getMembersByDepartment(churchId, departmentId);
+  return enrichMembersWithAbsenceCounts(churchId, members);
+}
+
 export async function createMember(
   churchId: string,
   data: Omit<Member, 'id' | 'createdAt' | 'updatedAt' | 'flagged'>
@@ -148,6 +175,57 @@ export async function getAttendanceByDate(churchId: string, dateString: string):
   return null;
 }
 
+export async function getMTDAttendance(churchId: string): Promise<{ presentMTD: number; absentMTD: number }> {
+  const attendanceRef = collection(db, getChurchPath(churchId), 'attendance');
+
+  // Get first day of current month
+  const now = new Date();
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const q = query(
+    attendanceRef,
+    where('date', '>=', Timestamp.fromDate(firstOfMonth)),
+    orderBy('date', 'desc')
+  );
+
+  const snapshot = await getDocs(q);
+
+  let presentMTD = 0;
+  let absentMTD = 0;
+
+  snapshot.docs.forEach((doc) => {
+    const data = doc.data();
+    presentMTD += data.presentCount || 0;
+    absentMTD += data.absentCount || 0;
+  });
+
+  return { presentMTD, absentMTD };
+}
+
+export async function getYTDAbsenceCounts(churchId: string): Promise<Record<string, number>> {
+  const attendanceRef = collection(db, getChurchPath(churchId), 'attendance');
+  const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+
+  const q = query(
+    attendanceRef,
+    where('date', '>=', Timestamp.fromDate(startOfYear)),
+    orderBy('date', 'desc')
+  );
+  const snapshot = await getDocs(q);
+
+  const absenceCounts: Record<string, number> = {};
+  snapshot.docs.forEach((doc) => {
+    const data = doc.data();
+    Object.entries(data.records || {}).forEach(([memberId, record]) => {
+      if (!(record as { present: boolean }).present) {
+        absenceCounts[memberId] = (absenceCounts[memberId] || 0) + 1;
+      }
+    });
+  });
+
+  return absenceCounts;
+}
+
 export async function saveAttendance(
   churchId: string,
   dateString: string,
@@ -186,41 +264,26 @@ export async function saveAttendance(
 }
 
 async function updateFlaggedMembers(churchId: string): Promise<void> {
-  // Get last 60 days of attendance
-  const attendanceRef = collection(db, getChurchPath(churchId), 'attendance');
-  const sixtyDaysAgo = new Date();
-  sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+  // Get YTD absence counts using shared function
+  const absenceCounts = await getYTDAbsenceCounts(churchId);
 
-  const q = query(
-    attendanceRef,
-    where('date', '>=', Timestamp.fromDate(sixtyDaysAgo)),
-    orderBy('date', 'desc')
-  );
-  const snapshot = await getDocs(q);
-
-  // Count absences per member
-  const absenceCounts: Record<string, number> = {};
-  snapshot.docs.forEach((doc) => {
-    const data = doc.data();
-    Object.entries(data.records || {}).forEach(([memberId, record]) => {
-      if (!(record as { present: boolean }).present) {
-        absenceCounts[memberId] = (absenceCounts[memberId] || 0) + 1;
-      }
-    });
-  });
-
-  // Update flagged status for members with 2+ absences
+  // Update flagged status AND absenceCount for all members
   const membersRef = collection(db, getChurchPath(churchId), 'members');
   const membersSnapshot = await getDocs(membersRef);
 
   const batch = writeBatch(db);
   membersSnapshot.docs.forEach((memberDoc) => {
     const memberId = memberDoc.id;
-    const shouldBeFlagged = (absenceCounts[memberId] || 0) >= 2;
-    const currentlyFlagged = memberDoc.data().flagged || false;
+    const absenceCount = absenceCounts[memberId] || 0;
+    const shouldBeFlagged = absenceCount >= 2;
+    const currentData = memberDoc.data();
 
-    if (shouldBeFlagged !== currentlyFlagged) {
-      batch.update(memberDoc.ref, { flagged: shouldBeFlagged });
+    // Update if absenceCount or flagged status changed
+    if (absenceCount !== currentData.absenceCount || shouldBeFlagged !== currentData.flagged) {
+      batch.update(memberDoc.ref, {
+        flagged: shouldBeFlagged,
+        absenceCount: absenceCount,
+      });
     }
   });
 
@@ -238,6 +301,23 @@ export async function getTithes(churchId: string, month?: string): Promise<Tithe
   } else {
     q = query(tithesRef, orderBy('date', 'desc'), limit(100));
   }
+
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as TitheRecord));
+}
+
+export async function getYTDTithes(churchId: string): Promise<TitheRecord[]> {
+  const tithesRef = collection(db, getChurchPath(churchId), 'tithes');
+  const currentYear = new Date().getFullYear();
+  const startOfYear = `${currentYear}-01`;
+  const endOfYear = `${currentYear}-12`;
+
+  const q = query(
+    tithesRef,
+    where('month', '>=', startOfYear),
+    where('month', '<=', endOfYear),
+    orderBy('month')
+  );
 
   const snapshot = await getDocs(q);
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as TitheRecord));
@@ -270,11 +350,12 @@ export async function deleteTithe(churchId: string, titheId: string): Promise<vo
 // ==================== DASHBOARD STATS ====================
 
 export async function getDashboardStats(churchId: string) {
-  const [members, departments, todayAttendance, monthTithes] = await Promise.all([
+  const [members, departments, mtdAttendance, ytdTithes, ytdAbsenceCounts] = await Promise.all([
     getMembers(churchId),
     getDepartments(churchId),
-    getAttendanceByDate(churchId, new Date().toISOString().slice(0, 10)),
-    getTithes(churchId, new Date().toISOString().slice(0, 7)),
+    getMTDAttendance(churchId),
+    getYTDTithes(churchId),
+    getYTDAbsenceCounts(churchId),
   ]);
 
   const genderCounts = { male: 0, female: 0 };
@@ -302,18 +383,26 @@ export async function getDashboardStats(churchId: string) {
     }
   });
 
-  const monthlyTotal = monthTithes.reduce((sum, t) => sum + t.amount, 0);
+  const ytdTotal = ytdTithes.reduce((sum, t) => sum + t.amount, 0);
+
+  // Enrich members with computed YTD absence counts and filter those with 1+ absences
+  const flaggedMembers = members
+    .map((m) => ({
+      ...m,
+      absenceCount: ytdAbsenceCounts[m.id] ?? 0,
+    }))
+    .filter((m) => m.absenceCount >= 1);
 
   return {
     totalMembers: members.length,
     totalDepartments: departments.length,
-    presentToday: todayAttendance?.presentCount || 0,
-    absentToday: todayAttendance?.absentCount || 0,
-    monthlyTithes: monthlyTotal,
+    presentMTD: mtdAttendance.presentMTD,
+    absentMTD: mtdAttendance.absentMTD,
+    ytdTithes: ytdTotal,
     genderDistribution: genderCounts,
     membersByDepartment: deptCounts,
     membershipGrowth,
-    flaggedMembers: members.filter((m) => m.flagged),
+    flaggedMembers,
   };
 }
 

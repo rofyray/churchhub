@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { getDepartments, getMembersByDepartment } from '@/lib/firebase/firestore';
+import { getDepartments, getMembersByDepartmentWithAbsenceCounts } from '@/lib/firebase/firestore';
 import { Card, Badge, Modal } from '@/components/ui';
 import { Department, Member } from '@/lib/types';
 
@@ -39,7 +39,7 @@ export default function DepartmentsPage() {
     setLoadingMembers(true);
 
     try {
-      const members = await getMembersByDepartment(churchId, dept.id);
+      const members = await getMembersByDepartmentWithAbsenceCounts(churchId, dept.id);
       setDeptMembers(members);
     } catch (err) {
       console.error('Error loading department members:', err);
@@ -236,10 +236,12 @@ export default function DepartmentsPage() {
                   <p className="font-medium text-white">
                     {member.firstName} {member.lastName}
                   </p>
-                  <p className="text-sm text-slate-400">{member.phone}</p>
+                  <p className="text-sm text-slate-400">+233 {member.phone}</p>
                 </div>
                 {member.flagged && (
-                  <Badge variant="danger" size="sm">Flagged</Badge>
+                  <Badge variant="danger" size="sm">
+                    {member.absenceCount ?? 2} {(member.absenceCount ?? 2) === 1 ? 'absence' : 'absences'}
+                  </Badge>
                 )}
               </div>
             ))}

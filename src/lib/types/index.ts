@@ -37,6 +37,7 @@ export interface Member {
   photoUrl?: string;
   notes?: string;
   flagged: boolean;
+  absenceCount?: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

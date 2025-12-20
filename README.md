@@ -79,7 +79,7 @@ A modern, full-featured Church Management System for managing members, departmen
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/churchhub.git
+   git clone https://github.com/rofyray/churchhub.git
    cd churchhub
    ```
 

@@ -55,6 +55,7 @@ html,
 body {
   min-height: 100vh;
   overflow-x: hidden;
+  color-scheme: dark;
 }
 
 body {
@@ -127,6 +128,12 @@ body {
     -webkit-text-fill-color: #e6eef9 !important;
     caret-color: #e6eef9 !important;
     transition: background-color 5000s ease-in-out 0s;
+  }
+
+  /* White calendar icon for date inputs */
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
   }
 }
 

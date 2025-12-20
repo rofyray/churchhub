@@ -49,12 +49,12 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
             {...props}
           >
             {placeholder && (
-              <option value="" disabled>
+              <option value="" disabled className="bg-dark-secondary text-text-secondary">
                 {placeholder}
               </option>
             )}
             {options.map((option) => (
-              <option key={option.value} value={option.value}>
+              <option key={option.value} value={option.value} className="bg-dark-secondary text-white">
                 {option.label}
               </option>
             ))}

@@ -123,7 +123,7 @@ export default function TabNav({ isOpen, onClose, isCollapsed = false, onToggleC
         className={`
           fixed top-16 left-0 z-40 h-[calc(100vh-4rem)] bg-dark-secondary border-r border-glass-border
           transform transition-all duration-300 ease-in-out
-          lg:translate-x-0 lg:static lg:z-0
+          lg:translate-x-0
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
           ${isCollapsed ? 'w-20' : 'w-64'}
         `}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { getMembers, getMembersByDepartment, createMember, updateMember, deleteMember } from '@/lib/firebase/firestore';
+import { getMembersWithAbsenceCounts, getMembersByDepartmentWithAbsenceCounts, createMember, updateMember, deleteMember } from '@/lib/firebase/firestore';
 import { Member, MemberFormData } from '@/lib/types';
 import { Timestamp } from 'firebase/firestore';
 
@@ -22,8 +22,8 @@ export function useMembers(departmentId?: string) {
 
     try {
       const data = departmentId
-        ? await getMembersByDepartment(churchId, departmentId)
-        : await getMembers(churchId);
+        ? await getMembersByDepartmentWithAbsenceCounts(churchId, departmentId)
+        : await getMembersWithAbsenceCounts(churchId);
       setMembers(data);
     } catch (err) {
       console.error('Error fetching members:', err);

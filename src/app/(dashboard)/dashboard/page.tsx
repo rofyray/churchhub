@@ -1,19 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getDashboardStats, initializeDepartments } from '@/lib/firebase/firestore';
 import StatsCards from '@/components/dashboard/StatsCards';
 import Charts from '@/components/dashboard/Charts';
-import { Card, CardHeader, CardTitle, Badge, useToast } from '@/components/ui';
+import { Card, CardHeader, CardTitle, Badge, useToast, Input, Select } from '@/components/ui';
 import { Member } from '@/lib/types';
 
 interface DashboardData {
   totalMembers: number;
   totalDepartments: number;
-  presentToday: number;
-  absentToday: number;
-  monthlyTithes: number;
+  presentMTD: number;
+  absentMTD: number;
+  ytdTithes: number;
   genderDistribution: { male: number; female: number };
   membersByDepartment: Record<string, number>;
   membershipGrowth: Record<string, number>;
@@ -26,6 +26,8 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [absenceFilter, setAbsenceFilter] = useState<string | null>(null);
+  const [nameSearch, setNameSearch] = useState<string>('');
 
   useEffect(() => {
     async function loadDashboard() {
@@ -49,6 +51,46 @@ export default function DashboardPage() {
 
     loadDashboard();
   }, [adminData?.churchId, showError]);
+
+  // Generate filter options from actual absence counts in the dataset
+  // This hook must be before any early returns to satisfy Rules of Hooks
+  const filterOptions = useMemo(() => {
+    if (!data || data.flaggedMembers.length === 0) return [];
+
+    // Get unique absence counts from the dataset, sorted descending
+    const uniqueCounts = [...new Set(
+      data.flaggedMembers.map((m) => m.absenceCount ?? 0)
+    )].sort((a, b) => b - a);
+
+    // Add "All" option first, then individual counts
+    return [
+      { value: 'all', label: 'All absences' },
+      ...uniqueCounts.map((count) => ({
+        value: count.toString(),
+        label: `${count} ${count === 1 ? 'absence' : 'absences'}`,
+      })),
+    ];
+  }, [data]);
+
+  // Filter flagged members based on exact absence count and name search
+  const filteredMembers = useMemo(() => {
+    if (!data) return [];
+
+    // Default to 'all' if no filter selected
+    const effectiveFilter = absenceFilter ?? 'all';
+
+    return data.flaggedMembers
+      .filter((member) => {
+        if (effectiveFilter === 'all') return true;
+        return (member.absenceCount ?? 0) === Number(effectiveFilter);
+      })
+      .filter((member) => {
+        if (!nameSearch.trim()) return true;
+        const fullName = `${member.firstName} ${member.lastName}`.toLowerCase();
+        return fullName.includes(nameSearch.toLowerCase());
+      })
+      .sort((a, b) => (b.absenceCount ?? 0) - (a.absenceCount ?? 0));
+  }, [data, absenceFilter, nameSearch]);
 
   if (loading) {
     return (
@@ -131,9 +173,9 @@ export default function DashboardPage() {
       {/* Stats Cards */}
       <StatsCards
         totalMembers={data.totalMembers}
-        presentToday={data.presentToday}
-        absentToday={data.absentToday}
-        monthlyTithes={data.monthlyTithes}
+        presentMTD={data.presentMTD}
+        absentMTD={data.absentMTD}
+        ytdTithes={data.ytdTithes}
       />
 
       {/* Charts */}
@@ -155,31 +197,53 @@ export default function DashboardPage() {
               <Badge variant="warning">{data.flaggedMembers.length}</Badge>
             </div>
           </CardHeader>
-          <div className="space-y-2">
-            {data.flaggedMembers.slice(0, 5).map((member) => (
-              <div
-                key={member.id}
-                className="flex items-center justify-between p-3 bg-white/5 rounded-lg"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
-                    <span className="text-sm font-medium text-amber-300">
-                      {member.firstName[0]}{member.lastName[0]}
-                    </span>
+
+          {/* Filter Controls */}
+          <div className="flex flex-col sm:flex-row gap-3 mb-4 mt-2">
+            <div className="flex-1">
+              <Input
+                placeholder="Search by name..."
+                value={nameSearch}
+                onChange={(e) => setNameSearch(e.target.value)}
+              />
+            </div>
+            <div className="w-full sm:w-48">
+              <Select
+                value={absenceFilter ?? 'all'}
+                onChange={(e) => setAbsenceFilter(e.target.value)}
+                options={filterOptions}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {filteredMembers.length > 0 ? (
+              filteredMembers.map((member) => (
+                <div
+                  key={member.id}
+                  className="flex items-center justify-between p-3 bg-white/5 rounded-lg"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                      <span className="text-sm font-medium text-amber-300">
+                        {member.firstName[0]}{member.lastName[0]}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="font-medium text-white">
+                        {member.firstName} {member.lastName}
+                      </p>
+                      <p className="text-sm text-slate-400">{member.departmentName}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium text-white">
-                      {member.firstName} {member.lastName}
-                    </p>
-                    <p className="text-sm text-slate-400">{member.departmentName}</p>
-                  </div>
+                  <Badge variant="danger" size="sm">
+                    {member.absenceCount ?? 0} {(member.absenceCount ?? 0) === 1 ? 'absence' : 'absences'}
+                  </Badge>
                 </div>
-                <Badge variant="danger" size="sm">2+ absences</Badge>
-              </div>
-            ))}
-            {data.flaggedMembers.length > 5 && (
-              <p className="text-sm text-slate-400 text-center pt-2">
-                And {data.flaggedMembers.length - 5} more...
+              ))
+            ) : (
+              <p className="text-sm text-slate-400 text-center py-4">
+                No members match the current filters
               </p>
             )}
           </div>

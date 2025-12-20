@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { getMembers, getAttendanceByDate, saveAttendance } from '@/lib/firebase/firestore';
+import { getMembersWithAbsenceCounts, getAttendanceByDate, saveAttendance } from '@/lib/firebase/firestore';
 import { Button, Input, Card, Badge, useToast } from '@/components/ui';
 import { Member } from '@/lib/types';
 
@@ -27,7 +27,7 @@ export default function AttendancePage() {
       setLoading(true);
       try {
         const [membersList, attendanceRecord] = await Promise.all([
-          getMembers(churchId),
+          getMembersWithAbsenceCounts(churchId),
           getAttendanceByDate(churchId, selectedDate),
         ]);
 
@@ -247,7 +247,9 @@ export default function AttendancePage() {
                         {member.firstName} {member.lastName}
                       </p>
                       {member.flagged && (
-                        <Badge variant="danger" size="sm">Flagged</Badge>
+                        <Badge variant="danger" size="sm">
+                          {member.absenceCount ?? 2} {(member.absenceCount ?? 2) === 1 ? 'absence' : 'absences'}
+                        </Badge>
                       )}
                     </div>
                     <p className="text-sm text-slate-400">

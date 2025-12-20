@@ -55,7 +55,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pt-16">
       <Header
         onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
         isSidebarOpen={isSidebarOpen}
@@ -69,7 +69,7 @@ export default function DashboardLayout({
           onToggleCollapse={toggleCollapsed}
         />
 
-        <main className="flex-1 p-4 lg:p-6 min-h-[calc(100vh-4rem)]">
+        <main className={`flex-1 p-4 lg:p-6 min-h-[calc(100vh-4rem)] ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
           {children}
         </main>
       </div>

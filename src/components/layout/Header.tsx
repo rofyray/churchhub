@@ -12,7 +12,7 @@ export default function Header({ onMenuClick, isSidebarOpen }: HeaderProps) {
   const { adminData, signOut } = useAuth();
 
   return (
-    <header className="sticky top-0 z-40 bg-dark-primary/80 backdrop-blur-md border-b border-glass-border">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-dark-primary/80 backdrop-blur-md border-b border-glass-border">
       <div className="flex items-center justify-between h-16 px-4 lg:px-6">
         {/* Left side - Logo and Menu button */}
         <div className="flex items-center gap-3">

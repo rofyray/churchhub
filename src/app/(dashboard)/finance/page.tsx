@@ -12,23 +12,40 @@ export default function FinancePage() {
   const { success, error: showError } = useToast();
   const [members, setMembers] = useState<Member[]>([]);
   const [tithes, setTithes] = useState<TitheRecord[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const currentDate = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1); // 1-12
+  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<TitheRecord | null>(null);
 
   const churchId = adminData?.churchId || '';
 
-  // Generate month options
-  const monthOptions = useMemo(() => {
+  // Compute the month string for API calls (format: YYYY-MM)
+  const selectedMonthString = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
+
+  // Month options (fixed list)
+  const monthOptions = [
+    { value: '1', label: 'January' },
+    { value: '2', label: 'February' },
+    { value: '3', label: 'March' },
+    { value: '4', label: 'April' },
+    { value: '5', label: 'May' },
+    { value: '6', label: 'June' },
+    { value: '7', label: 'July' },
+    { value: '8', label: 'August' },
+    { value: '9', label: 'September' },
+    { value: '10', label: 'October' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'December' },
+  ];
+
+  // Year options (2025 onwards, extending 5 years into future)
+  const yearOptions = useMemo(() => {
     const options = [];
-    const now = new Date();
-    for (let i = 0; i < 12; i++) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      options.push({
-        value: date.toISOString().slice(0, 7),
-        label: date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
-      });
+    const currentYear = new Date().getFullYear();
+    for (let year = 2025; year <= currentYear + 5; year++) {
+      options.push({ value: String(year), label: String(year) });
     }
     return options;
   }, []);
@@ -42,7 +59,7 @@ export default function FinancePage() {
       try {
         const [membersList, tithesList] = await Promise.all([
           getMembers(churchId),
-          getTithes(churchId, selectedMonth),
+          getTithes(churchId, selectedMonthString),
         ]);
         setMembers(membersList);
         setTithes(tithesList);
@@ -54,7 +71,7 @@ export default function FinancePage() {
     }
 
     loadData();
-  }, [churchId, selectedMonth]);
+  }, [churchId, selectedMonthString]);
 
   // Stats
   const stats = useMemo(() => {
@@ -79,13 +96,13 @@ export default function FinancePage() {
         memberId: data.memberId,
         memberName: `${member.firstName} ${member.lastName}`,
         amount: data.amount,
-        month: selectedMonth,
+        month: selectedMonthString,
         date: Timestamp.fromDate(new Date()),
         note: data.note,
       });
 
       // Refresh tithes
-      const updatedTithes = await getTithes(churchId, selectedMonth);
+      const updatedTithes = await getTithes(churchId, selectedMonthString);
       setTithes(updatedTithes);
       setShowAddModal(false);
       success('Tithe entry added successfully');
@@ -102,7 +119,7 @@ export default function FinancePage() {
       await deleteTithe(churchId, showDeleteConfirm.id);
 
       // Refresh tithes
-      const updatedTithes = await getTithes(churchId, selectedMonth);
+      const updatedTithes = await getTithes(churchId, selectedMonthString);
       setTithes(updatedTithes);
       setShowDeleteConfirm(null);
       success('Tithe entry deleted');
@@ -121,12 +138,20 @@ export default function FinancePage() {
           <p className="text-slate-400 mt-1">Track tithes and offerings</p>
         </div>
         <div className="flex items-center gap-3">
-          <Select
-            options={monthOptions}
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="w-48"
-          />
+          <div className="flex items-center gap-2">
+            <Select
+              options={monthOptions}
+              value={String(selectedMonth)}
+              onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+              className="w-36"
+            />
+            <Select
+              options={yearOptions}
+              value={String(selectedYear)}
+              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+              className="w-24"
+            />
+          </div>
           <Button onClick={() => setShowAddModal(true)}>
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -141,7 +166,7 @@ export default function FinancePage() {
         <Card className="p-5 bg-brand-600/10 border-brand-500/20">
           <p className="text-sm text-slate-400">Total This Month</p>
           <p className="text-3xl font-bold text-white mt-1">
-            ₵{stats.total.toLocaleString()}
+            GH₵{stats.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
         </Card>
         <Card className="p-5">
@@ -151,7 +176,7 @@ export default function FinancePage() {
         <Card className="p-5">
           <p className="text-sm text-slate-400">Average Amount</p>
           <p className="text-3xl font-bold text-white mt-1">
-            ₵{stats.average.toFixed(2)}
+            GH₵{stats.average.toFixed(2)}
           </p>
         </Card>
       </div>
@@ -194,7 +219,7 @@ export default function FinancePage() {
                 </div>
                 <div className="flex items-center gap-4">
                   <Badge variant="brand" className="text-lg font-semibold">
-                    ₵{tithe.amount.toLocaleString()}
+                    GH₵{tithe.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Badge>
                   <button
                     onClick={() => setShowDeleteConfirm(tithe)}
@@ -325,7 +350,7 @@ function AddTitheForm({ members, onSubmit, onCancel }: AddTitheFormProps) {
       />
 
       <Input
-        label="Amount (₵)"
+        label="Amount (GH₵)"
         type="number"
         step="0.01"
         min="0"

@@ -42,7 +42,9 @@ export default function MemberCard({ member, onClick }: MemberCardProps) {
               {fullName}
             </h3>
             {member.flagged && (
-              <Badge variant="danger" size="sm">Flagged</Badge>
+              <Badge variant="danger" size="sm">
+                {member.absenceCount ?? 2} {(member.absenceCount ?? 2) === 1 ? 'absence' : 'absences'}
+              </Badge>
             )}
           </div>
 
