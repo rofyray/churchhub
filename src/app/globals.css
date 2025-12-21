@@ -129,12 +129,37 @@ body {
     caret-color: #e6eef9 !important;
     transition: background-color 5000s ease-in-out 0s;
   }
+}
 
-  /* White calendar icon for date inputs */
-  input[type="date"]::-webkit-calendar-picker-indicator {
-    filter: invert(1);
-    cursor: pointer;
-  }
+/* Date input styling - OUTSIDE @layer for higher specificity over Tailwind */
+input[type="date"] {
+  position: relative;
+  color-scheme: dark;
+  color: white !important;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: brightness(0) invert(1) !important;
+  cursor: pointer;
+  opacity: 1 !important;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  margin: 0;
+}
+
+input[type="date"]::-webkit-datetime-edit,
+input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+input[type="date"]::-webkit-datetime-edit-text,
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="date"]::-webkit-datetime-edit-year-field {
+  color: white !important;
+}
+
+input[type="date"]::-webkit-inner-spin-button,
+input[type="date"]::-webkit-clear-button {
+  display: none;
 }
 
 /* Component layer styles - only classes that are actually used */

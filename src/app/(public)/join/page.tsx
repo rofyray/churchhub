@@ -80,37 +80,39 @@ function JoinPageContent() {
       await submitPendingMember(churchId, tokenId, {
         firstName: formData.firstName,
         lastName: formData.lastName,
-        email: formData.email,
+        email: formData.email || '',
         phone: formData.phone,
         gender: formData.gender,
         dob: formData.dob ? Timestamp.fromDate(new Date(formData.dob)) : null,
         joinedDate: formData.joinedDate ? Timestamp.fromDate(new Date(formData.joinedDate)) : null,
-        joinedVia: formData.joinedVia,
+        joinedVia: formData.joinedVia || '',
         departmentId: formData.departmentId,
         departmentName: dept?.name || '',
-        residence: formData.residence,
-        notes: formData.notes,
-        photoUrl,
+        residence: formData.residence || '',
+        notes: formData.notes || '',
+        ...(photoUrl && { photoUrl }),
       });
 
       setSubmitted(true);
     } catch (err) {
       console.error('Submission error:', err);
 
-      // Provide more specific error messages
+      // Provide user-friendly error messages
       if (err instanceof Error) {
         const errorMessage = err.message.toLowerCase();
         if (errorMessage.includes('permission') || errorMessage.includes('denied')) {
-          setSubmitError('Registration link may have expired. Please request a new link from your church administrator.');
-        } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
-          setSubmitError('Network error. Please check your connection and try again.');
+          setSubmitError('This registration link has expired. Please ask for a new link from your church administrator.');
+        } else if (errorMessage.includes('network') || errorMessage.includes('fetch') || errorMessage.includes('failed to fetch')) {
+          setSubmitError('Unable to connect. Please check your internet connection and try again.');
         } else if (errorMessage.includes('token')) {
-          setSubmitError('Invalid or expired registration link. Please request a new link.');
+          setSubmitError('This registration link is no longer valid. Please ask for a new link.');
+        } else if (errorMessage.includes('invalid') || errorMessage.includes('argument')) {
+          setSubmitError('Something went wrong. Please try again or contact support.');
         } else {
-          setSubmitError(`Registration failed: ${err.message}`);
+          setSubmitError('Registration could not be completed. Please try again.');
         }
       } else {
-        setSubmitError('Failed to submit registration. Please try again.');
+        setSubmitError('Registration could not be completed. Please try again.');
       }
     } finally {
       setSubmitting(false);

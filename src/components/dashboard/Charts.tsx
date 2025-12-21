@@ -130,6 +130,28 @@ export function GrowthChart({ data, selectedYear, availableYears, onYearChange }
     ],
   };
 
+  // Custom options for growth chart - force whole numbers on Y-axis
+  const growthOptions = {
+    ...defaultOptions,
+    scales: {
+      ...defaultOptions.scales,
+      y: {
+        ...defaultOptions.scales.y,
+        beginAtZero: true,
+        ticks: {
+          ...defaultOptions.scales.y.ticks,
+          stepSize: 1,
+          callback: function(value: number | string) {
+            if (typeof value === 'number' && Number.isInteger(value)) {
+              return value;
+            }
+            return null;
+          },
+        },
+      },
+    },
+  };
+
   return (
     <Card className="p-4">
       <CardHeader>
@@ -151,7 +173,7 @@ export function GrowthChart({ data, selectedYear, availableYears, onYearChange }
         </div>
       </CardHeader>
       <div className="h-64">
-        <Line data={chartData} options={defaultOptions} />
+        <Line data={chartData} options={growthOptions} />
       </div>
     </Card>
   );

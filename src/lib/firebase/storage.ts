@@ -76,23 +76,6 @@ export async function deletePendingMemberPhoto(
 }
 
 /**
- * Upload an admin profile photo to Firebase Storage
- */
-export async function uploadAdminPhoto(
-  adminUid: string,
-  file: File
-): Promise<string> {
-  const compressedFile = await compressImage(file, 800, 0.8);
-  const fileRef = ref(storage, `admins/${adminUid}/profile.jpg`);
-
-  await uploadBytes(fileRef, compressedFile, {
-    contentType: 'image/jpeg',
-  });
-
-  return getDownloadURL(fileRef);
-}
-
-/**
  * Compress an image file using canvas
  */
 async function compressImage(

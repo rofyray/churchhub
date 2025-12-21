@@ -649,8 +649,3 @@ export async function deletePendingMember(churchId: string, pendingId: string): 
   await deleteDoc(docRef);
 }
 
-// Admin operations
-export async function updateAdminPhoto(adminUid: string, photoUrl: string): Promise<void> {
-  const adminRef = doc(db, 'admins', adminUid);
-  await updateDoc(adminRef, { photoUrl });
-}
