@@ -21,6 +21,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   clearError: () => void;
+  refreshAdminData: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -123,6 +124,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearError = () => setError(null);
 
+  const refreshAdminData = async () => {
+    if (!user) return;
+
+    try {
+      const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+      if (adminDoc.exists()) {
+        setAdminData({ uid: user.uid, ...adminDoc.data() } as Admin);
+      }
+    } catch (err) {
+      console.error('Error refreshing admin data:', err);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -133,6 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signIn,
         signOut,
         clearError,
+        refreshAdminData,
       }}
     >
       {children}

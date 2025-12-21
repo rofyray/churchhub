@@ -601,6 +601,7 @@ export async function approvePendingMember(
   const pendingData = pendingDoc.data() as PendingMember;
 
   // Create the actual member
+  // Use submitted joinedDate and joinedVia if available, otherwise use defaults
   const memberId = await createMember(churchId, {
     firstName: pendingData.firstName,
     lastName: pendingData.lastName,
@@ -608,8 +609,8 @@ export async function approvePendingMember(
     phone: pendingData.phone,
     gender: pendingData.gender,
     dob: pendingData.dob,
-    joinedDate: Timestamp.now(),
-    joinedVia: 'Self-Registration',
+    joinedDate: pendingData.joinedDate || Timestamp.now(),
+    joinedVia: pendingData.joinedVia || 'Self-Registration',
     departmentId: pendingData.departmentId,
     departmentName: pendingData.departmentName,
     residence: pendingData.residence || '',
@@ -646,4 +647,10 @@ export async function rejectPendingMember(
 export async function deletePendingMember(churchId: string, pendingId: string): Promise<void> {
   const docRef = doc(db, getChurchPath(churchId), 'pendingMembers', pendingId);
   await deleteDoc(docRef);
+}
+
+// Admin operations
+export async function updateAdminPhoto(adminUid: string, photoUrl: string): Promise<void> {
+  const adminRef = doc(db, 'admins', adminUid);
+  await updateDoc(adminRef, { photoUrl });
 }

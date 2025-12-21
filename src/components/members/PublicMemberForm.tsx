@@ -24,6 +24,8 @@ export default function PublicMemberForm({
     phone: '',
     gender: undefined,
     dob: '',
+    joinedDate: new Date().toISOString().slice(0, 10),
+    joinedVia: '',
     departmentId: '',
     residence: '',
     notes: '',
@@ -74,6 +76,9 @@ export default function PublicMemberForm({
       if (!formData.departmentId) {
         throw new Error('Please select a department');
       }
+      if (!formData.joinedVia) {
+        throw new Error('Please select how you found us');
+      }
 
       if (formData.email?.trim()) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -97,6 +102,16 @@ export default function PublicMemberForm({
     { value: '', label: 'Select...' },
     { value: 'male', label: 'Male' },
     { value: 'female', label: 'Female' },
+  ];
+
+  const joinedViaOptions = [
+    { value: '', label: 'Select...' },
+    { value: 'Walk-in', label: 'Walk-in' },
+    { value: 'Invitation', label: 'Invitation' },
+    { value: 'Crusade', label: 'Crusade' },
+    { value: 'Online', label: 'Online' },
+    { value: 'Transfer', label: 'Transfer' },
+    { value: 'Other', label: 'Other' },
   ];
 
   const displayError = error || externalError;
@@ -132,6 +147,7 @@ export default function PublicMemberForm({
           ref={fileInputRef}
           type="file"
           accept="image/*"
+          capture="environment"
           onChange={handlePhotoChange}
           className="hidden"
         />
@@ -198,23 +214,41 @@ export default function PublicMemberForm({
         </div>
       </div>
 
-      {/* Date of birth */}
-      <Input
-        label="Date of Birth"
-        type="date"
-        value={formData.dob}
-        onChange={(e) => handleChange('dob', e.target.value)}
-      />
+      {/* Date fields */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Input
+          label="Date of Birth"
+          type="date"
+          value={formData.dob}
+          onChange={(e) => handleChange('dob', e.target.value)}
+        />
+        <Input
+          label="Joined Date"
+          type="date"
+          value={formData.joinedDate}
+          onChange={(e) => handleChange('joinedDate', e.target.value)}
+          required
+        />
+      </div>
 
-      {/* Department */}
-      <Select
-        label="Department"
-        options={departmentOptions}
-        value={formData.departmentId}
-        onChange={(e) => handleChange('departmentId', e.target.value)}
-        placeholder="Select department"
-        required
-      />
+      {/* Department and joined via */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Select
+          label="Department"
+          options={departmentOptions}
+          value={formData.departmentId}
+          onChange={(e) => handleChange('departmentId', e.target.value)}
+          placeholder="Select department"
+          required
+        />
+        <Select
+          label="How did you find us?"
+          options={joinedViaOptions}
+          value={formData.joinedVia}
+          onChange={(e) => handleChange('joinedVia', e.target.value)}
+          required
+        />
+      </div>
 
       {/* Residence */}
       <Input

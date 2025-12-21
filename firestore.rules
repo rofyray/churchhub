@@ -25,7 +25,10 @@ service cloud.firestore {
     // Admins collection (top-level)
     match /admins/{adminId} {
       allow read: if isAuthenticated() && request.auth.uid == adminId;
-      allow write: if false; // Only via Admin SDK or Firebase Console
+      // Allow admins to update only their photoUrl field
+      allow update: if isAuthenticated() && request.auth.uid == adminId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['photoUrl']);
+      allow create, delete: if false; // Only via Admin SDK or Firebase Console
     }
 
     // Churches and all subcollections

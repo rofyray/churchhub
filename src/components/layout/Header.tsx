@@ -71,6 +71,7 @@ export default function Header({ onMenuClick, isSidebarOpen }: HeaderProps) {
             </div>
             <Avatar
               name={adminData?.name}
+              src={adminData?.photoUrl}
               size="md"
             />
           </div>

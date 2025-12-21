@@ -76,6 +76,7 @@ export interface Admin {
   churchId: string;
   role: AdminRole;
   createdAt: Timestamp;
+  photoUrl?: string;
 }
 
 // Dashboard stats
@@ -152,6 +153,8 @@ export interface PendingMember {
   phone: string;
   gender?: Gender;
   dob?: Timestamp | null;
+  joinedDate?: Timestamp | null;
+  joinedVia?: string;
   departmentId: string;
   departmentName: string;
   residence?: string;
@@ -172,6 +175,8 @@ export interface PublicRegistrationFormData {
   phone: string;
   gender?: Gender;
   dob?: string;
+  joinedDate?: string;
+  joinedVia?: string;
   departmentId: string;
   residence?: string;
   notes?: string;

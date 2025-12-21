@@ -15,5 +15,13 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
       allow read: if request.auth != null;  // Only admins can view
     }
+
+    // Admin profile photos
+    match /admins/{adminUid}/{fileName} {
+      allow read: if request.auth != null && request.auth.uid == adminUid;
+      allow write: if request.auth != null && request.auth.uid == adminUid
+        && request.resource.size < 5 * 1024 * 1024  // 5MB max
+        && request.resource.contentType.matches('image/.*');
+    }
   }
 }

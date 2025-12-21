@@ -28,6 +28,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [absenceFilter, setAbsenceFilter] = useState<string | null>(null);
   const [nameSearch, setNameSearch] = useState<string>('');
+  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
 
   useEffect(() => {
     async function loadDashboard() {
@@ -137,19 +138,25 @@ export default function DashboardPage() {
     count,
   }));
 
-  // Calculate real growth data from membershipGrowth (cumulative by month)
+  // Extract available years from membership growth data
+  const availableYears = [...new Set(
+    Object.keys(data.membershipGrowth).map(key => key.split('-')[0])
+  )].sort().reverse();
+
+  // If selected year is not in available years, default to most recent
+  const effectiveYear = availableYears.includes(selectedYear) ? selectedYear : (availableYears[0] || new Date().getFullYear().toString());
+
+  // Calculate cumulative growth data for selected year
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const now = new Date();
   const growthData: { month: string; count: number }[] = [];
 
   // Get sorted list of all months with member joins
   const sortedMonths = Object.keys(data.membershipGrowth).sort();
 
-  // Get last 6 months
-  for (let i = 5; i >= 0; i--) {
-    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    const monthName = monthNames[date.getMonth()];
+  // Generate data for all 12 months of the selected year
+  for (let month = 0; month < 12; month++) {
+    const monthKey = `${effectiveYear}-${String(month + 1).padStart(2, '0')}`;
+    const monthName = monthNames[month];
 
     // Count all members who joined up to and including this month
     let cumulativeCount = 0;
@@ -183,6 +190,9 @@ export default function DashboardPage() {
         genderData={data.genderDistribution}
         growthData={growthData}
         departmentData={departmentData}
+        selectedYear={effectiveYear}
+        availableYears={availableYears}
+        onYearChange={setSelectedYear}
       />
 
       {/* Flagged Members Alert */}

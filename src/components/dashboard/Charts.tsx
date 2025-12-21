@@ -106,9 +106,12 @@ export function GenderChart({ male, female }: GenderChartProps) {
 
 interface GrowthChartProps {
   data: { month: string; count: number }[];
+  selectedYear: string;
+  availableYears: string[];
+  onYearChange: (year: string) => void;
 }
 
-export function GrowthChart({ data }: GrowthChartProps) {
+export function GrowthChart({ data, selectedYear, availableYears, onYearChange }: GrowthChartProps) {
   const chartData = {
     labels: data.map((d) => d.month),
     datasets: [
@@ -130,7 +133,22 @@ export function GrowthChart({ data }: GrowthChartProps) {
   return (
     <Card className="p-4">
       <CardHeader>
-        <CardTitle>Membership Growth</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle>Membership Growth</CardTitle>
+          {availableYears.length > 0 && (
+            <select
+              value={selectedYear}
+              onChange={(e) => onYearChange(e.target.value)}
+              className="px-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-brand-500/50 cursor-pointer"
+            >
+              {availableYears.map((year) => (
+                <option key={year} value={year} className="bg-dark-secondary">
+                  {year}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
       </CardHeader>
       <div className="h-64">
         <Line data={chartData} options={defaultOptions} />
@@ -198,13 +216,21 @@ interface ChartsProps {
   genderData: { male: number; female: number };
   growthData: { month: string; count: number }[];
   departmentData: { department: string; count: number }[];
+  selectedYear: string;
+  availableYears: string[];
+  onYearChange: (year: string) => void;
 }
 
-export default function Charts({ genderData, growthData, departmentData }: ChartsProps) {
+export default function Charts({ genderData, growthData, departmentData, selectedYear, availableYears, onYearChange }: ChartsProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
       <GenderChart male={genderData.male} female={genderData.female} />
-      <GrowthChart data={growthData} />
+      <GrowthChart
+        data={growthData}
+        selectedYear={selectedYear}
+        availableYears={availableYears}
+        onYearChange={onYearChange}
+      />
       <DepartmentChart data={departmentData} />
     </div>
   );

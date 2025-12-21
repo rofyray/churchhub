@@ -66,7 +66,13 @@ function JoinPageContent() {
 
       let photoUrl: string | undefined;
       if (formData.photo) {
-        photoUrl = await uploadPendingMemberPhoto(churchId, tempId, formData.photo);
+        try {
+          photoUrl = await uploadPendingMemberPhoto(churchId, tempId, formData.photo);
+        } catch (photoErr) {
+          console.error('Photo upload failed:', photoErr);
+          // Continue without photo - don't block registration
+          photoUrl = undefined;
+        }
       }
 
       const dept = departments.find((d) => d.id === formData.departmentId);
@@ -78,6 +84,8 @@ function JoinPageContent() {
         phone: formData.phone,
         gender: formData.gender,
         dob: formData.dob ? Timestamp.fromDate(new Date(formData.dob)) : null,
+        joinedDate: formData.joinedDate ? Timestamp.fromDate(new Date(formData.joinedDate)) : null,
+        joinedVia: formData.joinedVia,
         departmentId: formData.departmentId,
         departmentName: dept?.name || '',
         residence: formData.residence,
@@ -88,7 +96,22 @@ function JoinPageContent() {
       setSubmitted(true);
     } catch (err) {
       console.error('Submission error:', err);
-      setSubmitError('Failed to submit registration. Please try again.');
+
+      // Provide more specific error messages
+      if (err instanceof Error) {
+        const errorMessage = err.message.toLowerCase();
+        if (errorMessage.includes('permission') || errorMessage.includes('denied')) {
+          setSubmitError('Registration link may have expired. Please request a new link from your church administrator.');
+        } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+          setSubmitError('Network error. Please check your connection and try again.');
+        } else if (errorMessage.includes('token')) {
+          setSubmitError('Invalid or expired registration link. Please request a new link.');
+        } else {
+          setSubmitError(`Registration failed: ${err.message}`);
+        }
+      } else {
+        setSubmitError('Failed to submit registration. Please try again.');
+      }
     } finally {
       setSubmitting(false);
     }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardHeader, CardTitle, Button, Modal, Input, Select, QRCodeDisplay, useToast } from '@/components/ui';
 import {
@@ -11,7 +11,9 @@ import {
   getAttendanceRecords,
   getYTDTithes,
   getChurch,
+  updateAdminPhoto,
 } from '@/lib/firebase/firestore';
+import { uploadAdminPhoto } from '@/lib/firebase/storage';
 import {
   exportMembersToPDF,
   exportMembersToCSV,
@@ -23,13 +25,17 @@ import {
 } from '@/lib/utils/export';
 
 export default function SettingsPage() {
-  const { user, adminData, signOut } = useAuth();
+  const { user, adminData, signOut, refreshAdminData } = useAuth();
   const { error: showError, success } = useToast();
   const [showDeleteAdmin, setShowDeleteAdmin] = useState(false);
   const [showDeleteChurch, setShowDeleteChurch] = useState(false);
   const [churchNameConfirm, setChurchNameConfirm] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Profile photo state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   // Token generation state
   const [expirationMinutes, setExpirationMinutes] = useState(10);
@@ -40,6 +46,40 @@ export default function SettingsPage() {
   const [exporting, setExporting] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>('pdf');
   const [exportType, setExportType] = useState<'members' | 'attendance' | 'finance'>('members');
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.uid) return;
+
+    // Validate file
+    if (!file.type.startsWith('image/')) {
+      showError('Please select an image file');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showError('Image must be less than 5MB');
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      const photoUrl = await uploadAdminPhoto(user.uid, file);
+      await updateAdminPhoto(user.uid, photoUrl);
+      if (refreshAdminData) {
+        await refreshAdminData();
+      }
+      success('Profile photo updated');
+    } catch (err) {
+      console.error('Photo upload error:', err);
+      showError('Failed to upload photo. Please try again.');
+    } finally {
+      setUploadingPhoto(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   const handleDeleteAdmin = async () => {
     if (!user?.uid) return;
@@ -199,16 +239,50 @@ export default function SettingsPage() {
         </CardHeader>
         <div className="space-y-4">
           <div className="flex items-center gap-6">
-            <div className="w-16 h-16 rounded-full bg-brand-600/20 flex items-center justify-center">
-              <span className="text-xl font-semibold text-brand-300">
-                {adminData?.name?.charAt(0) || 'A'}
-              </span>
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="w-16 h-16 rounded-full bg-brand-600/20 flex items-center justify-center cursor-pointer hover:bg-brand-600/30 transition-colors overflow-hidden relative group"
+            >
+              {adminData?.photoUrl ? (
+                <img
+                  src={adminData.photoUrl}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-xl font-semibold text-brand-300">
+                  {adminData?.name?.charAt(0) || 'A'}
+                </span>
+              )}
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                {uploadingPhoto ? (
+                  <svg className="w-5 h-5 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                )}
+              </div>
             </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoUpload}
+              className="hidden"
+            />
             <div>
               <p className="text-lg font-medium text-white">{adminData?.name || 'Admin'}</p>
               <p className="text-slate-400">{adminData?.email}</p>
               <p className="text-sm text-slate-500 mt-1">
                 Role: <span className="capitalize">{adminData?.role?.replace('_', ' ') || 'Admin'}</span>
+              </p>
+              <p className="text-xs text-brand-400 mt-2 cursor-pointer hover:underline" onClick={() => fileInputRef.current?.click()}>
+                {uploadingPhoto ? 'Uploading...' : 'Click avatar to change photo'}
               </p>
             </div>
           </div>
