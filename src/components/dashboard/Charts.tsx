@@ -213,11 +213,26 @@ export function DepartmentChart({ data }: DepartmentChartProps) {
   };
 
   const options = {
-    ...defaultOptions,
+    responsive: true,
+    maintainAspectRatio: false,
     indexAxis: 'y' as const,
     plugins: {
       legend: {
         display: false,
+      },
+    },
+    scales: {
+      x: {
+        beginAtZero: true,
+        ticks: {
+          color: '#94a3b8',
+          precision: 0,
+        },
+        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+      },
+      y: {
+        ticks: { color: '#94a3b8' },
+        grid: { color: 'rgba(255, 255, 255, 0.05)' },
       },
     },
   };
