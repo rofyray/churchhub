@@ -566,8 +566,12 @@ export async function submitPendingMember(
     status: 'pending',
   });
 
-  // Increment token usage count
-  await incrementTokenUsage(churchId, tokenId);
+  // Increment token usage count (fail silently - public users can't update tokens)
+  try {
+    await incrementTokenUsage(churchId, tokenId);
+  } catch {
+    // Expected for public users - they don't have write access to tokens
+  }
 
   return docRef.id;
 }
