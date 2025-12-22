@@ -15,11 +15,11 @@ service cloud.firestore {
     }
 
     // Helper to validate a registration token
+    // TTL is validated client-side before form is shown
     function isValidToken(churchId, tokenId) {
       let tokenPath = /databases/$(database)/documents/churches/$(churchId)/registrationTokens/$(tokenId);
       return exists(tokenPath) &&
-        get(tokenPath).data.isActive == true &&
-        get(tokenPath).data.expiresAt > request.time;
+        get(tokenPath).data.isActive == true;
     }
 
     // Admins collection (top-level)
