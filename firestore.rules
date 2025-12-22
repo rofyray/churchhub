@@ -17,10 +17,9 @@ service cloud.firestore {
     // Helper to validate a registration token
     function isValidToken(churchId, tokenId) {
       let tokenPath = /databases/$(database)/documents/churches/$(churchId)/registrationTokens/$(tokenId);
-      let tokenData = get(tokenPath).data;
       return exists(tokenPath) &&
-        tokenData.isActive == true &&
-        tokenData.createdAt + duration.value(tokenData.expirationMinutes, 'm') > request.time;
+        get(tokenPath).data.isActive == true &&
+        get(tokenPath).data.expiresAt > request.time;
     }
 
     // Admins collection (top-level)

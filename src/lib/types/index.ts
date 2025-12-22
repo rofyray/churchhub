@@ -138,6 +138,7 @@ export interface RegistrationToken {
   churchId: string;
   createdBy: string;
   createdAt: Timestamp;
+  expiresAt: Timestamp;
   expirationMinutes: number;
   isActive: boolean;
   usageCount: number;

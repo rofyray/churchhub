@@ -469,10 +469,14 @@ export async function createRegistrationToken(
 ): Promise<string> {
   const tokensRef = collection(db, getChurchPath(churchId), 'registrationTokens');
 
+  // Calculate expiration time at creation, not at validation time
+  const expiresAt = Timestamp.fromMillis(Date.now() + expirationMinutes * 60 * 1000);
+
   const docRef = await addDoc(tokensRef, {
     churchId,
     createdBy: adminUid,
     createdAt: serverTimestamp(),
+    expiresAt,
     expirationMinutes,
     isActive: true,
     usageCount: 0,
@@ -508,11 +512,9 @@ export async function validateToken(
     return { valid: false, error: 'Token has been deactivated' };
   }
 
-  const now = new Date();
-  const createdAt = token.createdAt.toDate();
-  const expiresAt = new Date(createdAt.getTime() + token.expirationMinutes * 60 * 1000);
-
-  if (now > expiresAt) {
+  // Use expiresAt directly - no calculation needed
+  const now = Timestamp.now();
+  if (token.expiresAt && now.toMillis() > token.expiresAt.toMillis()) {
     return { valid: false, error: 'Token has expired' };
   }
 
