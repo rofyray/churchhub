@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { getMembers, getTithes, createTithe, deleteTithe } from '@/lib/firebase/firestore';
-import { Button, Input, Select, Card, Modal, Badge, useToast } from '@/components/ui';
-import { Member, TitheRecord } from '@/lib/types';
+import { getMembers, getTithes, createTithe, deleteTithe, getDepartments } from '@/lib/firebase/firestore';
+import { Button, Input, Select, SearchableSelect, Card, Modal, Badge, useToast } from '@/components/ui';
+import { Member, TitheRecord, Department } from '@/lib/types';
 import { Timestamp } from 'firebase/firestore';
 
 export default function FinancePage() {
@@ -18,6 +18,9 @@ export default function FinancePage() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<TitheRecord | null>(null);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
+  const [showOverallStats, setShowOverallStats] = useState(false);
 
   const churchId = adminData?.churchId || '';
 
@@ -40,11 +43,13 @@ export default function FinancePage() {
     { value: '12', label: 'December' },
   ];
 
-  // Year options (2025 onwards, extending 5 years into future)
+  // Year options (1990 to currentYear+10, newest first for easy access)
   const yearOptions = useMemo(() => {
     const options = [];
     const currentYear = new Date().getFullYear();
-    for (let year = 2025; year <= currentYear + 5; year++) {
+    const startYear = 1990;
+    const endYear = currentYear + 10;
+    for (let year = endYear; year >= startYear; year--) {
       options.push({ value: String(year), label: String(year) });
     }
     return options;
@@ -57,12 +62,14 @@ export default function FinancePage() {
 
       setLoading(true);
       try {
-        const [membersList, tithesList] = await Promise.all([
+        const [membersList, tithesList, departmentsList] = await Promise.all([
           getMembers(churchId),
           getTithes(churchId, selectedMonthString),
+          getDepartments(churchId),
         ]);
         setMembers(membersList);
         setTithes(tithesList);
+        setDepartments(departmentsList);
       } catch (err) {
         console.error('Error loading data:', err);
         showError('Failed to load finance data');
@@ -74,13 +81,44 @@ export default function FinancePage() {
     loadData();
   }, [churchId, selectedMonthString]);
 
-  // Stats
+  // Filter tithes by department (client-side)
+  const filteredTithes = useMemo(() => {
+    if (!selectedDepartment) return tithes;
+
+    // Get member IDs in selected department
+    const deptMemberIds = new Set(
+      members
+        .filter((m) => m.departmentId === selectedDepartment)
+        .map((m) => m.id)
+    );
+
+    // Filter tithes to only those from department members
+    return tithes.filter((t) => deptMemberIds.has(t.memberId));
+  }, [tithes, members, selectedDepartment]);
+
+  // Get selected department name
+  const selectedDepartmentName = useMemo(() => {
+    if (!selectedDepartment) return '';
+    return departments.find((d) => d.id === selectedDepartment)?.name || '';
+  }, [selectedDepartment, departments]);
+
+  // Stats (overall and department)
   const stats = useMemo(() => {
-    const total = tithes.reduce((sum, t) => sum + t.amount, 0);
-    const count = tithes.length;
-    const average = count > 0 ? total / count : 0;
-    return { total, count, average };
-  }, [tithes]);
+    // Overall stats (always from all tithes)
+    const overallTotal = tithes.reduce((sum, t) => sum + t.amount, 0);
+    const overallCount = tithes.length;
+    const overallAverage = overallCount > 0 ? overallTotal / overallCount : 0;
+
+    // Department stats (from filtered tithes)
+    const deptTotal = filteredTithes.reduce((sum, t) => sum + t.amount, 0);
+    const deptCount = filteredTithes.length;
+    const deptAverage = deptCount > 0 ? deptTotal / deptCount : 0;
+
+    return {
+      overall: { total: overallTotal, count: overallCount, average: overallAverage },
+      department: { total: deptTotal, count: deptCount, average: deptAverage },
+    };
+  }, [tithes, filteredTithes]);
 
   const handleAddTithe = async (data: {
     memberId: string;
@@ -138,8 +176,8 @@ export default function FinancePage() {
           <h1 className="text-2xl font-bold text-white">Finance</h1>
           <p className="text-slate-400 mt-1">Track tithes and offerings</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <Select
               options={monthOptions}
               value={String(selectedMonth)}
@@ -150,7 +188,16 @@ export default function FinancePage() {
               options={yearOptions}
               value={String(selectedYear)}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-              className="w-24"
+              className="w-28"
+            />
+            <Select
+              options={[
+                { value: '', label: 'All Departments' },
+                ...departments.map((d) => ({ value: d.id, label: d.name })),
+              ]}
+              value={selectedDepartment}
+              onChange={(e) => setSelectedDepartment(e.target.value)}
+              className="w-44"
             />
           </div>
           <Button onClick={() => setShowAddModal(true)}>
@@ -162,25 +209,88 @@ export default function FinancePage() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="p-5 bg-brand-600/10 border-brand-500/20">
-          <p className="text-sm text-slate-400">Total This Month</p>
-          <p className="text-3xl font-bold text-white mt-1">
-            GH₵{stats.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </p>
-        </Card>
-        <Card className="p-5">
-          <p className="text-sm text-slate-400">Number of Entries</p>
-          <p className="text-3xl font-bold text-white mt-1">{stats.count}</p>
-        </Card>
-        <Card className="p-5">
-          <p className="text-sm text-slate-400">Average Amount</p>
-          <p className="text-3xl font-bold text-white mt-1">
-            GH₵{stats.average.toFixed(2)}
-          </p>
-        </Card>
-      </div>
+      {/* Stats Section */}
+      {selectedDepartment ? (
+        <>
+          {/* Department Stats (shown first when department selected) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card className="p-5 bg-purple-600/10 border-purple-500/20">
+              <p className="text-sm text-slate-400">{selectedDepartmentName} Total</p>
+              <p className="text-3xl font-bold text-white mt-1">
+                GH₵{stats.department.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </Card>
+            <Card className="p-5">
+              <p className="text-sm text-slate-400">{selectedDepartmentName} Entries</p>
+              <p className="text-3xl font-bold text-white mt-1">{stats.department.count}</p>
+            </Card>
+            <Card className="p-5">
+              <p className="text-sm text-slate-400">{selectedDepartmentName} Average</p>
+              <p className="text-3xl font-bold text-white mt-1">
+                GH₵{stats.department.average.toFixed(2)}
+              </p>
+            </Card>
+          </div>
+
+          {/* Toggle for Overall Stats */}
+          <button
+            onClick={() => setShowOverallStats(!showOverallStats)}
+            className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors"
+          >
+            <svg
+              className={`w-4 h-4 transition-transform ${showOverallStats ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+            {showOverallStats ? 'Hide Overall Stats' : 'Show Overall Stats'}
+          </button>
+
+          {/* Collapsible Overall Stats */}
+          {showOverallStats && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Card className="p-5 bg-brand-600/10 border-brand-500/20">
+                <p className="text-sm text-slate-400">Total This Month</p>
+                <p className="text-3xl font-bold text-white mt-1">
+                  GH₵{stats.overall.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </Card>
+              <Card className="p-5">
+                <p className="text-sm text-slate-400">Number of Entries</p>
+                <p className="text-3xl font-bold text-white mt-1">{stats.overall.count}</p>
+              </Card>
+              <Card className="p-5">
+                <p className="text-sm text-slate-400">Average Amount</p>
+                <p className="text-3xl font-bold text-white mt-1">
+                  GH₵{stats.overall.average.toFixed(2)}
+                </p>
+              </Card>
+            </div>
+          )}
+        </>
+      ) : (
+        /* Overall Stats (shown normally when no department selected) */
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card className="p-5 bg-brand-600/10 border-brand-500/20">
+            <p className="text-sm text-slate-400">Total This Month</p>
+            <p className="text-3xl font-bold text-white mt-1">
+              GH₵{stats.overall.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+          </Card>
+          <Card className="p-5">
+            <p className="text-sm text-slate-400">Number of Entries</p>
+            <p className="text-3xl font-bold text-white mt-1">{stats.overall.count}</p>
+          </Card>
+          <Card className="p-5">
+            <p className="text-sm text-slate-400">Average Amount</p>
+            <p className="text-3xl font-bold text-white mt-1">
+              GH₵{stats.overall.average.toFixed(2)}
+            </p>
+          </Card>
+        </div>
+      )}
 
       {/* Tithe List */}
       {loading ? (
@@ -197,9 +307,9 @@ export default function FinancePage() {
             </Card>
           ))}
         </div>
-      ) : tithes.length > 0 ? (
+      ) : filteredTithes.length > 0 ? (
         <div className="space-y-2">
-          {tithes.map((tithe) => (
+          {filteredTithes.map((tithe) => (
             <Card key={tithe.id} className="p-4 hover:bg-white/5 transition-colors">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -258,6 +368,7 @@ export default function FinancePage() {
       >
         <AddTitheForm
           members={members}
+          departments={departments}
           onSubmit={handleAddTithe}
           onCancel={() => setShowAddModal(false)}
         />
@@ -293,21 +404,38 @@ export default function FinancePage() {
 // Add Tithe Form Component
 interface AddTitheFormProps {
   members: Member[];
+  departments: Department[];
   onSubmit: (data: { memberId: string; amount: number; note: string }) => Promise<void>;
   onCancel: () => void;
 }
 
-function AddTitheForm({ members, onSubmit, onCancel }: AddTitheFormProps) {
+function AddTitheForm({ members, departments, onSubmit, onCancel }: AddTitheFormProps) {
+  const [filterDepartment, setFilterDepartment] = useState('');
   const [memberId, setMemberId] = useState('');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const memberOptions = members.map((m) => ({
-    value: m.id,
-    label: `${m.firstName} ${m.lastName}`,
-  }));
+  // Filter and map member options based on selected department
+  const memberOptions = useMemo(() => {
+    let filtered = members;
+
+    // Filter by department if one is selected
+    if (filterDepartment) {
+      filtered = filtered.filter((m) => m.departmentId === filterDepartment);
+    }
+
+    return filtered.map((m) => ({
+      value: m.id,
+      label: `${m.firstName} ${m.lastName}`,
+    }));
+  }, [members, filterDepartment]);
+
+  // Reset member selection when department filter changes
+  useEffect(() => {
+    setMemberId('');
+  }, [filterDepartment]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -343,11 +471,21 @@ function AddTitheForm({ members, onSubmit, onCancel }: AddTitheFormProps) {
       )}
 
       <Select
+        label="Filter by Department"
+        options={[
+          { value: '', label: 'All Departments' },
+          ...departments.map((d) => ({ value: d.id, label: d.name })),
+        ]}
+        value={filterDepartment}
+        onChange={(e) => setFilterDepartment(e.target.value)}
+      />
+
+      <SearchableSelect
         label="Member"
         options={memberOptions}
         value={memberId}
-        onChange={(e) => setMemberId(e.target.value)}
-        placeholder="Select a member"
+        onChange={setMemberId}
+        placeholder="Search for a member..."
       />
 
       <Input
