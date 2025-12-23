@@ -1,6 +1,6 @@
 {
-  "name": "Church Hub",
-  "short_name": "ChurchHub",
+  "name": "Ekklesia",
+  "short_name": "Ekklesia",
   "description": "Modern church management system for tracking members, attendance, and finances",
   "start_url": "/",
   "display": "standalone",

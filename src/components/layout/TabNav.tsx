@@ -195,7 +195,7 @@ export default function TabNav({ isOpen, onClose, isCollapsed = false, onToggleC
           {/* Version text */}
           {!isCollapsed && (
             <div className="text-center mt-3">
-              <p className="text-xs text-text-muted">Church Hub v1.0</p>
+              <p className="text-xs text-text-muted">Ekklesia v1.0</p>
             </div>
           )}
         </div>

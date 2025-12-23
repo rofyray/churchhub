@@ -12,13 +12,13 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: 'Church Hub - Church Management System',
+  title: 'Ekklesia - Church Management System',
   description: 'Modern church management system for tracking members, attendance, and finances',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Church Hub',
+    title: 'Ekklesia',
   },
 };
 

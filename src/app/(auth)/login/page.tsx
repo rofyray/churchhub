@@ -121,7 +121,7 @@ export default function LoginPage() {
         {/* Footer */}
         <div className="mt-8 pt-6 border-t border-white/10 text-center">
           <p className="text-text-muted text-xs">
-            Church Hub v1.0
+            Ekklesia v1.0
           </p>
         </div>
       </Card>

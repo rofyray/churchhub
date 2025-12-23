@@ -1,4 +1,4 @@
-# ChurchHub
+# Ekklesia
 
 A modern, full-featured Church Management System for managing members, departments, attendance, and finances.
 

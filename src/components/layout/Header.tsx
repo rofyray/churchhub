@@ -54,7 +54,7 @@ export default function Header({ onMenuClick, isSidebarOpen }: HeaderProps) {
               </svg>
             </div>
             <div className="hidden sm:block">
-              <h1 className="text-lg font-semibold text-white">Church Hub</h1>
+              <h1 className="text-lg font-semibold text-white">Ekklesia</h1>
             </div>
           </div>
         </div>

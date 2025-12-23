@@ -37,7 +37,7 @@ export default function Home() {
             />
           </svg>
         </div>
-        <h1 className="text-xl font-semibold text-white">Church Hub</h1>
+        <h1 className="text-xl font-semibold text-white">Ekklesia</h1>
         <p className="text-slate-400 mt-2">Loading...</p>
       </div>
     </div>
