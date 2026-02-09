@@ -32,8 +32,8 @@ A modern, full-featured Church Management System for managing members, departmen
 - Historical attendance records
 - Automatic absence tracking (flags 2+ absences in 60 days)
 
-### Finance & Tithes
-- Record member tithes and offerings
+### Finance & Welfare
+- Record member welfare and offerings
 - Track payment methods
 - Financial reporting
 - Member contribution history
@@ -137,7 +137,7 @@ churchhub/
 │   │   │   ├── members/        # Member management
 │   │   │   ├── departments/    # Department management
 │   │   │   ├── attendance/     # Attendance tracking
-│   │   │   ├── finance/        # Tithes & finances
+│   │   │   ├── finance/        # Welfare & finances
 │   │   │   └── settings/       # Church settings
 │   │   ├── globals.css         # Tailwind v4 theme
 │   │   └── layout.tsx          # Root layout
@@ -253,7 +253,7 @@ Firestore Structure:
     │           departmentId, photoURL, joinDate, flagged
     ├── /attendance/{date}
     │       └── records: [{memberId, status, departmentId}]
-    └── /tithes/{titheId}
+    └── /welfare/{welfareId}
             └── memberId, amount, date, paymentMethod, notes
 
 /admins/{userId}

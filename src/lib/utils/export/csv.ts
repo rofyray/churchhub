@@ -93,10 +93,10 @@ export function exportAttendanceToCSV({ records, options }: AttendanceExportData
   downloadCSV(csv, filename);
 }
 
-export function exportFinanceToCSV({ tithes, options }: FinanceExportData): void {
+export function exportFinanceToCSV({ welfare, options }: FinanceExportData): void {
   const headers = ['Member Name', 'Amount (GHS)', 'Month', 'Date', 'Note'];
 
-  const rows = tithes.map(t => [
+  const rows = welfare.map(t => [
     escapeCSV(t.memberName),
     escapeCSV(t.amount.toFixed(2)),
     escapeCSV(t.month),

@@ -13,7 +13,7 @@ interface DashboardData {
   totalDepartments: number;
   presentMTD: number;
   absentMTD: number;
-  ytdTithes: number;
+  ytdWelfare: number;
   genderDistribution: { male: number; female: number };
   membersByDepartment: Record<string, number>;
   membershipGrowth: Record<string, number>;
@@ -182,7 +182,7 @@ export default function DashboardPage() {
         totalMembers={data.totalMembers}
         presentMTD={data.presentMTD}
         absentMTD={data.absentMTD}
-        ytdTithes={data.ytdTithes}
+        ytdWelfare={data.ytdWelfare}
       />
 
       {/* Charts */}
@@ -283,8 +283,8 @@ export default function DashboardPage() {
           }
         />
         <QuickActionCard
-          title="Record Tithe"
-          description="Add a new tithe entry"
+          title="Record Welfare"
+          description="Add a new welfare entry"
           href="/finance?action=add"
           icon={
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

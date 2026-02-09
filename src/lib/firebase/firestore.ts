@@ -19,7 +19,7 @@ import {
   Member,
   Department,
   AttendanceRecord,
-  TitheRecord,
+  WelfareRecord,
   DEPARTMENTS,
   RegistrationToken,
   PendingMember,
@@ -310,71 +310,71 @@ async function updateFlaggedMembers(churchId: string): Promise<void> {
   await batch.commit();
 }
 
-// ==================== TITHES ====================
+// ==================== WELFARE ====================
 
-export async function getTithes(churchId: string, month?: string): Promise<TitheRecord[]> {
-  const tithesRef = collection(db, getChurchPath(churchId), 'tithes');
+export async function getWelfare(churchId: string, month?: string): Promise<WelfareRecord[]> {
+  const welfareRef = collection(db, getChurchPath(churchId), 'welfare');
   let q;
 
   if (month) {
-    q = query(tithesRef, where('month', '==', month), orderBy('date', 'desc'));
+    q = query(welfareRef, where('month', '==', month), orderBy('date', 'desc'));
   } else {
-    q = query(tithesRef, orderBy('date', 'desc'), limit(100));
+    q = query(welfareRef, orderBy('date', 'desc'), limit(100));
   }
 
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as TitheRecord));
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as WelfareRecord));
 }
 
-export async function getYTDTithes(churchId: string): Promise<TitheRecord[]> {
-  const tithesRef = collection(db, getChurchPath(churchId), 'tithes');
+export async function getYTDWelfare(churchId: string): Promise<WelfareRecord[]> {
+  const welfareRef = collection(db, getChurchPath(churchId), 'welfare');
   const currentYear = new Date().getFullYear();
   const startOfYear = `${currentYear}-01`;
   const endOfYear = `${currentYear}-12`;
 
   const q = query(
-    tithesRef,
+    welfareRef,
     where('month', '>=', startOfYear),
     where('month', '<=', endOfYear),
     orderBy('month')
   );
 
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as TitheRecord));
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as WelfareRecord));
 }
 
-export async function getTithesByMember(churchId: string, memberId: string): Promise<TitheRecord[]> {
-  const tithesRef = collection(db, getChurchPath(churchId), 'tithes');
-  const q = query(tithesRef, where('memberId', '==', memberId), orderBy('date', 'desc'));
+export async function getWelfareByMember(churchId: string, memberId: string): Promise<WelfareRecord[]> {
+  const welfareRef = collection(db, getChurchPath(churchId), 'welfare');
+  const q = query(welfareRef, where('memberId', '==', memberId), orderBy('date', 'desc'));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as TitheRecord));
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as WelfareRecord));
 }
 
-export async function createTithe(
+export async function createWelfareEntry(
   churchId: string,
-  data: Omit<TitheRecord, 'id' | 'createdAt'>
+  data: Omit<WelfareRecord, 'id' | 'createdAt'>
 ): Promise<string> {
-  const tithesRef = collection(db, getChurchPath(churchId), 'tithes');
-  const docRef = await addDoc(tithesRef, {
+  const welfareRef = collection(db, getChurchPath(churchId), 'welfare');
+  const docRef = await addDoc(welfareRef, {
     ...data,
     createdAt: serverTimestamp(),
   });
   return docRef.id;
 }
 
-export async function deleteTithe(churchId: string, titheId: string): Promise<void> {
-  const docRef = doc(db, getChurchPath(churchId), 'tithes', titheId);
+export async function deleteWelfareEntry(churchId: string, welfareId: string): Promise<void> {
+  const docRef = doc(db, getChurchPath(churchId), 'welfare', welfareId);
   await deleteDoc(docRef);
 }
 
 // ==================== DASHBOARD STATS ====================
 
 export async function getDashboardStats(churchId: string) {
-  const [members, departments, mtdAttendance, ytdTithes, ytdAbsenceCounts] = await Promise.all([
+  const [members, departments, mtdAttendance, ytdWelfare, ytdAbsenceCounts] = await Promise.all([
     getMembers(churchId),
     getDepartments(churchId),
     getMTDAttendance(churchId),
-    getYTDTithes(churchId),
+    getYTDWelfare(churchId),
     getYTDAbsenceCounts(churchId),
   ]);
 
@@ -403,7 +403,7 @@ export async function getDashboardStats(churchId: string) {
     }
   });
 
-  const ytdTotal = ytdTithes.reduce((sum, t) => sum + t.amount, 0);
+  const ytdTotal = ytdWelfare.reduce((sum, t) => sum + t.amount, 0);
 
   // Enrich members with computed YTD absence counts and filter those with 1+ absences
   const flaggedMembers = members
@@ -418,7 +418,7 @@ export async function getDashboardStats(churchId: string) {
     totalDepartments: departments.length,
     presentMTD: mtdAttendance.presentMTD,
     absentMTD: mtdAttendance.absentMTD,
-    ytdTithes: ytdTotal,
+    ytdWelfare: ytdTotal,
     genderDistribution: genderCounts,
     membersByDepartment: deptCounts,
     membershipGrowth,
@@ -437,7 +437,7 @@ export async function deleteChurch(churchId: string): Promise<void> {
   const churchPath = getChurchPath(churchId);
 
   // Delete all subcollections
-  const subcollections = ['departments', 'members', 'attendance', 'tithes'];
+  const subcollections = ['departments', 'members', 'attendance', 'welfare'];
 
   for (const subcollection of subcollections) {
     const collRef = collection(db, churchPath, subcollection);

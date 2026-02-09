@@ -9,7 +9,23 @@
       ]
     },
     {
-      "collectionGroup": "tithes",
+      "collectionGroup": "pendingMembers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "submittedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "welfare",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "month", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "welfare",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "memberId", "order": "ASCENDING" },

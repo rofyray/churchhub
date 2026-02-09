@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { Member, Department } from '@/lib/types';
-import { Input, Select, SkeletonList, NoSearchResults, NoMembers } from '@/components/ui';
+import { Input, Select, Card, SkeletonList, NoSearchResults, NoMembers } from '@/components/ui';
 import MemberCard from './MemberCard';
 
 interface MemberListProps {
@@ -103,12 +103,16 @@ export default function MemberList({
           ))}
         </div>
       ) : search || deptFilter ? (
-        <NoSearchResults
-          searchTerm={search}
-          onClear={handleClearSearch}
-        />
+        <Card>
+          <NoSearchResults
+            searchTerm={search}
+            onClear={handleClearSearch}
+          />
+        </Card>
       ) : (
-        <NoMembers onAdd={onAddMember} />
+        <Card>
+          <NoMembers onAdd={onAddMember} />
+        </Card>
       )}
     </div>
   );

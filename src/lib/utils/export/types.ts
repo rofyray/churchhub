@@ -1,4 +1,4 @@
-import { Member, AttendanceRecord, TitheRecord } from '@/lib/types';
+import { Member, AttendanceRecord, WelfareRecord } from '@/lib/types';
 
 export type ExportFormat = 'pdf' | 'csv';
 
@@ -18,7 +18,7 @@ export interface AttendanceExportData {
 }
 
 export interface FinanceExportData {
-  tithes: TitheRecord[];
+  welfare: WelfareRecord[];
   totalAmount: number;
   options: ExportOptions;
 }

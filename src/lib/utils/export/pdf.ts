@@ -277,10 +277,10 @@ export function exportAttendanceToPDF({ records, options }: AttendanceExportData
   doc.save(generateFilename(options.churchName, 'Attendance'));
 }
 
-export function exportFinanceToPDF({ tithes, totalAmount, options }: FinanceExportData): void {
+export function exportFinanceToPDF({ welfare, totalAmount, options }: FinanceExportData): void {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-  let y = addHeader(doc, options.churchName, 'Finance Report (YTD Tithes)', options.exportDate);
+  let y = addHeader(doc, options.churchName, 'Finance Report (YTD Welfare)', options.exportDate);
 
   // Summary
   doc.setFontSize(12);
@@ -289,14 +289,14 @@ export function exportFinanceToPDF({ tithes, totalAmount, options }: FinanceExpo
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   y += 6;
-  doc.text(`Total Records: ${tithes.length}`, MARGIN, y);
+  doc.text(`Total Records: ${welfare.length}`, MARGIN, y);
   y += 10;
 
   // Table
   const headers = ['Member Name', 'Amount (GHS)', 'Month', 'Date', 'Note'];
   const columnWidths = [50, 30, 25, 30, 35];
 
-  const rows = tithes.map(t => [
+  const rows = welfare.map(t => [
     t.memberName,
     t.amount.toFixed(2),
     t.month,

@@ -54,8 +54,8 @@ export interface AttendanceRecord {
   updatedAt: Timestamp;
 }
 
-// Tithe/Finance types
-export interface TitheRecord {
+// Welfare/Finance types
+export interface WelfareRecord {
   id: string;
   memberId: string;
   memberName: string;
@@ -85,7 +85,7 @@ export interface DashboardStats {
   totalDepartments: number;
   presentToday: number;
   absentToday: number;
-  monthlyTithes: number;
+  monthlyWelfare: number;
   genderDistribution: {
     male: number;
     female: number;
@@ -115,7 +115,7 @@ export interface AttendanceFormData {
   records: Record<string, { present: boolean; note?: string }>;
 }
 
-export interface TitheFormData {
+export interface WelfareFormData {
   memberId: string;
   amount: number;
   month: string;
@@ -126,7 +126,7 @@ export interface TitheFormData {
 // Offline sync types
 export interface PendingSyncItem {
   id: string;
-  type: 'attendance' | 'member' | 'tithe';
+  type: 'attendance' | 'member' | 'welfare';
   action: 'create' | 'update' | 'delete';
   data: unknown;
   timestamp: number;

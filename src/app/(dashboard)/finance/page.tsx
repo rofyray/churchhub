@@ -2,22 +2,22 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { getMembers, getTithes, createTithe, deleteTithe, getDepartments } from '@/lib/firebase/firestore';
+import { getMembers, getWelfare, createWelfareEntry, deleteWelfareEntry, getDepartments } from '@/lib/firebase/firestore';
 import { Button, Input, Select, SearchableSelect, Card, Modal, Badge, useToast } from '@/components/ui';
-import { Member, TitheRecord, Department } from '@/lib/types';
+import { Member, WelfareRecord, Department } from '@/lib/types';
 import { Timestamp } from 'firebase/firestore';
 
 export default function FinancePage() {
   const { adminData } = useAuth();
   const { success, error: showError } = useToast();
   const [members, setMembers] = useState<Member[]>([]);
-  const [tithes, setTithes] = useState<TitheRecord[]>([]);
+  const [welfareEntries, setWelfareEntries] = useState<WelfareRecord[]>([]);
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1); // 1-12
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<TitheRecord | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<WelfareRecord | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
   const [showOverallStats, setShowOverallStats] = useState(false);
@@ -62,13 +62,13 @@ export default function FinancePage() {
 
       setLoading(true);
       try {
-        const [membersList, tithesList, departmentsList] = await Promise.all([
+        const [membersList, welfareList, departmentsList] = await Promise.all([
           getMembers(churchId),
-          getTithes(churchId, selectedMonthString),
+          getWelfare(churchId, selectedMonthString),
           getDepartments(churchId),
         ]);
         setMembers(membersList);
-        setTithes(tithesList);
+        setWelfareEntries(welfareList);
         setDepartments(departmentsList);
       } catch (err) {
         console.error('Error loading data:', err);
@@ -81,9 +81,9 @@ export default function FinancePage() {
     loadData();
   }, [churchId, selectedMonthString]);
 
-  // Filter tithes by department (client-side)
-  const filteredTithes = useMemo(() => {
-    if (!selectedDepartment) return tithes;
+  // Filter welfare entries by department (client-side)
+  const filteredWelfare = useMemo(() => {
+    if (!selectedDepartment) return welfareEntries;
 
     // Get member IDs in selected department
     const deptMemberIds = new Set(
@@ -92,9 +92,9 @@ export default function FinancePage() {
         .map((m) => m.id)
     );
 
-    // Filter tithes to only those from department members
-    return tithes.filter((t) => deptMemberIds.has(t.memberId));
-  }, [tithes, members, selectedDepartment]);
+    // Filter welfare entries to only those from department members
+    return welfareEntries.filter((t) => deptMemberIds.has(t.memberId));
+  }, [welfareEntries, members, selectedDepartment]);
 
   // Get selected department name
   const selectedDepartmentName = useMemo(() => {
@@ -104,23 +104,23 @@ export default function FinancePage() {
 
   // Stats (overall and department)
   const stats = useMemo(() => {
-    // Overall stats (always from all tithes)
-    const overallTotal = tithes.reduce((sum, t) => sum + t.amount, 0);
-    const overallCount = tithes.length;
+    // Overall stats (always from all welfare entries)
+    const overallTotal = welfareEntries.reduce((sum, t) => sum + t.amount, 0);
+    const overallCount = welfareEntries.length;
     const overallAverage = overallCount > 0 ? overallTotal / overallCount : 0;
 
-    // Department stats (from filtered tithes)
-    const deptTotal = filteredTithes.reduce((sum, t) => sum + t.amount, 0);
-    const deptCount = filteredTithes.length;
+    // Department stats (from filtered welfare entries)
+    const deptTotal = filteredWelfare.reduce((sum, t) => sum + t.amount, 0);
+    const deptCount = filteredWelfare.length;
     const deptAverage = deptCount > 0 ? deptTotal / deptCount : 0;
 
     return {
       overall: { total: overallTotal, count: overallCount, average: overallAverage },
       department: { total: deptTotal, count: deptCount, average: deptAverage },
     };
-  }, [tithes, filteredTithes]);
+  }, [welfareEntries, filteredWelfare]);
 
-  const handleAddTithe = async (data: {
+  const handleAddWelfare = async (data: {
     memberId: string;
     amount: number;
     note: string;
@@ -131,7 +131,7 @@ export default function FinancePage() {
     if (!member) return;
 
     try {
-      await createTithe(churchId, {
+      await createWelfareEntry(churchId, {
         memberId: data.memberId,
         memberName: `${member.firstName} ${member.lastName}`,
         amount: data.amount,
@@ -140,31 +140,31 @@ export default function FinancePage() {
         note: data.note,
       });
 
-      // Refresh tithes
-      const updatedTithes = await getTithes(churchId, selectedMonthString);
-      setTithes(updatedTithes);
+      // Refresh welfare entries
+      const updatedWelfare = await getWelfare(churchId, selectedMonthString);
+      setWelfareEntries(updatedWelfare);
       setShowAddModal(false);
-      success('Tithe entry added successfully');
+      success('Welfare entry added successfully');
     } catch (err) {
-      console.error('Error adding tithe:', err);
-      showError('Failed to add tithe entry');
+      console.error('Error adding welfare entry:', err);
+      showError('Failed to add welfare entry');
     }
   };
 
-  const handleDeleteTithe = async () => {
+  const handleDeleteWelfare = async () => {
     if (!churchId || !showDeleteConfirm) return;
 
     try {
-      await deleteTithe(churchId, showDeleteConfirm.id);
+      await deleteWelfareEntry(churchId, showDeleteConfirm.id);
 
-      // Refresh tithes
-      const updatedTithes = await getTithes(churchId, selectedMonthString);
-      setTithes(updatedTithes);
+      // Refresh welfare entries
+      const updatedWelfare = await getWelfare(churchId, selectedMonthString);
+      setWelfareEntries(updatedWelfare);
       setShowDeleteConfirm(null);
-      success('Tithe entry deleted');
+      success('Welfare entry deleted');
     } catch (err) {
-      console.error('Error deleting tithe:', err);
-      showError('Failed to delete tithe entry');
+      console.error('Error deleting welfare entry:', err);
+      showError('Failed to delete welfare entry');
     }
   };
 
@@ -174,7 +174,7 @@ export default function FinancePage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">Finance</h1>
-          <p className="text-slate-400 mt-1">Track tithes and offerings</p>
+          <p className="text-slate-400 mt-1">Track welfare and offerings</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -217,7 +217,7 @@ export default function FinancePage() {
             <Card className="p-5 bg-purple-600/10 border-purple-500/20">
               <p className="text-sm text-slate-400">{selectedDepartmentName} Total</p>
               <p className="text-3xl font-bold text-white mt-1">
-                GH₵{stats.department.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                GHS {stats.department.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </Card>
             <Card className="p-5">
@@ -227,7 +227,7 @@ export default function FinancePage() {
             <Card className="p-5">
               <p className="text-sm text-slate-400">{selectedDepartmentName} Average</p>
               <p className="text-3xl font-bold text-white mt-1">
-                GH₵{stats.department.average.toFixed(2)}
+                GHS {stats.department.average.toFixed(2)}
               </p>
             </Card>
           </div>
@@ -254,7 +254,7 @@ export default function FinancePage() {
               <Card className="p-5 bg-brand-600/10 border-brand-500/20">
                 <p className="text-sm text-slate-400">Total This Month</p>
                 <p className="text-3xl font-bold text-white mt-1">
-                  GH₵{stats.overall.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  GHS {stats.overall.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </Card>
               <Card className="p-5">
@@ -264,7 +264,7 @@ export default function FinancePage() {
               <Card className="p-5">
                 <p className="text-sm text-slate-400">Average Amount</p>
                 <p className="text-3xl font-bold text-white mt-1">
-                  GH₵{stats.overall.average.toFixed(2)}
+                  GHS {stats.overall.average.toFixed(2)}
                 </p>
               </Card>
             </div>
@@ -276,7 +276,7 @@ export default function FinancePage() {
           <Card className="p-5 bg-brand-600/10 border-brand-500/20">
             <p className="text-sm text-slate-400">Total This Month</p>
             <p className="text-3xl font-bold text-white mt-1">
-              GH₵{stats.overall.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              GHS {stats.overall.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </Card>
           <Card className="p-5">
@@ -286,13 +286,13 @@ export default function FinancePage() {
           <Card className="p-5">
             <p className="text-sm text-slate-400">Average Amount</p>
             <p className="text-3xl font-bold text-white mt-1">
-              GH₵{stats.overall.average.toFixed(2)}
+              GHS {stats.overall.average.toFixed(2)}
             </p>
           </Card>
         </div>
       )}
 
-      {/* Tithe List */}
+      {/* Welfare List */}
       {loading ? (
         <div className="space-y-2">
           {[1, 2, 3, 4].map((i) => (
@@ -307,33 +307,33 @@ export default function FinancePage() {
             </Card>
           ))}
         </div>
-      ) : filteredTithes.length > 0 ? (
+      ) : filteredWelfare.length > 0 ? (
         <div className="space-y-2">
-          {filteredTithes.map((tithe) => (
-            <Card key={tithe.id} className="p-4 hover:bg-white/5 transition-colors">
+          {filteredWelfare.map((entry) => (
+            <Card key={entry.id} className="p-4 hover:bg-white/5 transition-colors">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-full bg-brand-600/20 flex items-center justify-center">
                     <span className="text-sm font-medium text-brand-300">
-                      {tithe.memberName.split(' ').map((n) => n[0]).join('')}
+                      {entry.memberName.split(' ').map((n) => n[0]).join('')}
                     </span>
                   </div>
                   <div>
-                    <p className="font-medium text-white">{tithe.memberName}</p>
+                    <p className="font-medium text-white">{entry.memberName}</p>
                     <p className="text-sm text-slate-400">
-                      {tithe.date instanceof Timestamp
-                        ? tithe.date.toDate().toLocaleDateString('en-GB')
-                        : new Date(tithe.date).toLocaleDateString('en-GB')}
-                      {tithe.note && ` • ${tithe.note}`}
+                      {entry.date instanceof Timestamp
+                        ? entry.date.toDate().toLocaleDateString('en-GB')
+                        : new Date(entry.date).toLocaleDateString('en-GB')}
+                      {entry.note && ` • ${entry.note}`}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
                   <Badge variant="brand" className="text-lg font-semibold">
-                    GH₵{tithe.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    GHS {entry.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Badge>
                   <button
-                    onClick={() => setShowDeleteConfirm(tithe)}
+                    onClick={() => setShowDeleteConfirm(entry)}
                     className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-red-400"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -356,20 +356,20 @@ export default function FinancePage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
           </svg>
           <h3 className="text-lg font-semibold text-white mb-2">No entries yet</h3>
-          <p className="text-slate-400">Add your first tithe entry for this month</p>
+          <p className="text-slate-400">Add your first welfare entry for this month</p>
         </Card>
       )}
 
-      {/* Add Tithe Modal */}
+      {/* Add Welfare Modal */}
       <Modal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        title="Add Tithe Entry"
+        title="Add Welfare Entry"
       >
-        <AddTitheForm
+        <AddWelfareForm
           members={members}
           departments={departments}
-          onSubmit={handleAddTithe}
+          onSubmit={handleAddWelfare}
           onCancel={() => setShowAddModal(false)}
         />
       </Modal>
@@ -383,7 +383,7 @@ export default function FinancePage() {
       >
         <div className="space-y-4">
           <p className="text-slate-300">
-            Are you sure you want to delete this tithe entry from{' '}
+            Are you sure you want to delete this welfare entry from{' '}
             <span className="font-semibold text-white">{showDeleteConfirm?.memberName}</span>
             ?
           </p>
@@ -391,7 +391,7 @@ export default function FinancePage() {
             <Button variant="secondary" onClick={() => setShowDeleteConfirm(null)}>
               Cancel
             </Button>
-            <Button variant="danger" onClick={handleDeleteTithe}>
+            <Button variant="danger" onClick={handleDeleteWelfare}>
               Delete
             </Button>
           </div>
@@ -401,15 +401,15 @@ export default function FinancePage() {
   );
 }
 
-// Add Tithe Form Component
-interface AddTitheFormProps {
+// Add Welfare Form Component
+interface AddWelfareFormProps {
   members: Member[];
   departments: Department[];
   onSubmit: (data: { memberId: string; amount: number; note: string }) => Promise<void>;
   onCancel: () => void;
 }
 
-function AddTitheForm({ members, departments, onSubmit, onCancel }: AddTitheFormProps) {
+function AddWelfareForm({ members, departments, onSubmit, onCancel }: AddWelfareFormProps) {
   const [filterDepartment, setFilterDepartment] = useState('');
   const [memberId, setMemberId] = useState('');
   const [amount, setAmount] = useState('');
@@ -489,7 +489,7 @@ function AddTitheForm({ members, departments, onSubmit, onCancel }: AddTitheForm
       />
 
       <Input
-        label="Amount (GH₵)"
+        label="Amount (GHS)"
         type="number"
         step="0.01"
         min="0"

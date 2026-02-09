@@ -49,8 +49,8 @@ service cloud.firestore {
         allow read, write: if isChurchAdmin(churchId);
       }
 
-      // Tithes
-      match /tithes/{titheId} {
+      // Welfare
+      match /welfare/{welfareId} {
         allow read, write: if isChurchAdmin(churchId);
       }
 

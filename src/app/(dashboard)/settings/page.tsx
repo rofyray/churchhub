@@ -9,7 +9,7 @@ import {
   createRegistrationToken,
   getMembersWithAbsenceCounts,
   getAttendanceRecords,
-  getYTDTithes,
+  getYTDWelfare,
   getChurch,
 } from '@/lib/firebase/firestore';
 import {
@@ -158,11 +158,11 @@ export default function SettingsPage() {
           break;
         }
         case 'finance': {
-          const tithes = await getYTDTithes(adminData.churchId);
-          const totalAmount = tithes.reduce((sum, t) => sum + t.amount, 0);
+          const welfareEntries = await getYTDWelfare(adminData.churchId);
+          const totalAmount = welfareEntries.reduce((sum, t) => sum + t.amount, 0);
           exportFormat === 'pdf'
-            ? exportFinanceToPDF({ tithes, totalAmount, options })
-            : exportFinanceToCSV({ tithes, totalAmount, options });
+            ? exportFinanceToPDF({ welfare: welfareEntries, totalAmount, options })
+            : exportFinanceToCSV({ welfare: welfareEntries, totalAmount, options });
           break;
         }
       }
@@ -256,7 +256,6 @@ export default function SettingsPage() {
               { value: 'csv', label: 'CSV' },
             ]}
             className="w-24"
-            disabled
           />
           <Select
             label="Data"
@@ -268,7 +267,6 @@ export default function SettingsPage() {
               { value: 'finance', label: 'Finance (YTD)' },
             ]}
             className="w-44"
-            disabled
           />
           <Button
             variant="primary"
@@ -277,7 +275,6 @@ export default function SettingsPage() {
             onClick={handleExport}
             loading={exporting}
             loadingText="Exporting..."
-            disabled
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -285,9 +282,6 @@ export default function SettingsPage() {
             Export
           </Button>
         </div>
-        <p className="text-sm text-slate-500 mt-4">
-          This feature is available with a premium subscription. Contact us to enable.
-        </p>
       </Card>
 
       {/* Member Self-Registration */}
@@ -316,20 +310,15 @@ export default function SettingsPage() {
                 { value: '30', label: '30 minutes' },
                 { value: '60', label: '1 hour' },
               ]}
-              disabled
             />
           </div>
-          <Button onClick={handleGenerateToken} loading={generatingToken} loadingText="Generating..." disabled>
+          <Button onClick={handleGenerateToken} loading={generatingToken} loadingText="Generating...">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
             </svg>
             Generate Link
           </Button>
         </div>
-        <p className="text-sm text-slate-500 mt-4">
-          This feature is available with a premium subscription. Contact us to enable.
-        </p>
-
         {/* Generated Link Display */}
         {generatedToken && (
           <div className="mt-6 p-4 bg-white/5 rounded-xl border border-white/10">
@@ -396,7 +385,7 @@ export default function SettingsPage() {
             <div>
               <p className="font-medium text-white">Delete Church</p>
               <p className="text-sm text-slate-400 mt-1">
-                Permanently delete this church and all its data including members, attendance records, and tithes. This action cannot be undone.
+                Permanently delete this church and all its data including members, attendance records, and welfare entries. This action cannot be undone.
               </p>
             </div>
             <Button variant="danger" onClick={() => setShowDeleteChurch(true)}>
@@ -462,7 +451,7 @@ export default function SettingsPage() {
           <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
             <p className="text-red-400 font-medium">Warning: This action is irreversible!</p>
             <p className="text-sm text-slate-400 mt-1">
-              This will permanently delete all church data including members, departments, attendance records, and tithe entries.
+              This will permanently delete all church data including members, departments, attendance records, and welfare entries.
             </p>
           </div>
           <div>

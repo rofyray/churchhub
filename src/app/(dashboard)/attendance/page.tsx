@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getMembersWithAbsenceCounts, getAttendanceByDate, saveAttendance } from '@/lib/firebase/firestore';
-import { Button, Input, Card, Badge, useToast } from '@/components/ui';
+import { Button, Input, Card, Badge, useToast, EmptyState, NoSearchResults } from '@/components/ui';
 import { Member } from '@/lib/types';
 
 export default function AttendancePage() {
@@ -268,8 +268,23 @@ export default function AttendancePage() {
           })}
 
           {filteredMembers.length === 0 && (
-            <Card className="p-8 text-center">
-              <p className="text-slate-400">No members found</p>
+            <Card>
+              {search ? (
+                <NoSearchResults
+                  searchTerm={search}
+                  onClear={() => setSearch('')}
+                />
+              ) : (
+                <EmptyState
+                  icon={
+                    <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  }
+                  title="No members yet"
+                  description="Add members to start tracking attendance"
+                />
+              )}
             </Card>
           )}
         </div>

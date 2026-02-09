@@ -77,7 +77,7 @@ export default function Header({ onMenuClick, isSidebarOpen }: HeaderProps) {
           </div>
 
           {/* Sign out button */}
-          <Button variant="ghost" size="sm" onClick={signOut}>
+          <Button variant="secondary" size="sm" onClick={signOut}>
             <svg
               className="w-5 h-5"
               fill="none"
