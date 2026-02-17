@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { getDashboardStats, initializeDepartments } from '@/lib/firebase/firestore';
+import { getDashboardStats, initializeDepartments, deduplicateDepartments } from '@/lib/firebase/firestore';
 import StatsCards from '@/components/dashboard/StatsCards';
 import Charts from '@/components/dashboard/Charts';
 import { Card, CardHeader, CardTitle, Badge, useToast, Input, Select } from '@/components/ui';
@@ -35,8 +35,9 @@ export default function DashboardPage() {
       if (!adminData?.churchId) return;
 
       try {
-        // Initialize departments if needed
+        // Initialize departments if needed, then deduplicate any duplicates
         await initializeDepartments(adminData.churchId);
+        await deduplicateDepartments(adminData.churchId);
 
         // Load dashboard stats
         const stats = await getDashboardStats(adminData.churchId);

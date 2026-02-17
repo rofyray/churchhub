@@ -48,6 +48,12 @@ export async function getDepartments(churchId: string): Promise<Department[]> {
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Department));
 }
 
+// Generate a slug from department name for use as a deterministic doc ID
+// e.g., "Worship & Music" → "worship-music"
+function deptSlug(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
 export async function initializeDepartments(churchId: string): Promise<void> {
   const deptRef = collection(db, getChurchPath(churchId), 'departments');
   const snapshot = await getDocs(deptRef);
@@ -55,7 +61,7 @@ export async function initializeDepartments(churchId: string): Promise<void> {
   if (snapshot.empty) {
     const batch = writeBatch(db);
     DEPARTMENTS.forEach((name) => {
-      const docRef = doc(deptRef);
+      const docRef = doc(deptRef, deptSlug(name));
       batch.set(docRef, {
         name,
         description: '',
@@ -64,6 +70,93 @@ export async function initializeDepartments(churchId: string): Promise<void> {
       });
     });
     await batch.commit();
+  }
+}
+
+export async function deduplicateDepartments(churchId: string): Promise<void> {
+  const deptRef = collection(db, getChurchPath(churchId), 'departments');
+  const snapshot = await getDocs(deptRef);
+
+  if (snapshot.empty) return;
+
+  // Group documents by department name
+  const byName = new Map<string, { id: string; memberCount: number }[]>();
+  snapshot.docs.forEach((d) => {
+    const data = d.data();
+    const name = data.name as string;
+    if (!byName.has(name)) byName.set(name, []);
+    byName.get(name)!.push({ id: d.id, memberCount: (data.memberCount as number) || 0 });
+  });
+
+  // Check if any deduplication is needed
+  let needsWork = false;
+  for (const [name, docs] of byName) {
+    const canonicalId = deptSlug(name);
+    if (docs.length > 1 || (docs.length === 1 && docs[0].id !== canonicalId)) {
+      needsWork = true;
+      break;
+    }
+  }
+  if (!needsWork) return;
+
+  const batch = writeBatch(db);
+
+  for (const [name, docs] of byName) {
+    const canonicalId = deptSlug(name);
+
+    // Pick the document with the highest memberCount as the keeper
+    docs.sort((a, b) => b.memberCount - a.memberCount);
+    const keeper = docs[0];
+
+    // If the keeper isn't already at the canonical ID, create the canonical doc
+    if (keeper.id !== canonicalId) {
+      // Read full data from the keeper
+      const keeperSnap = snapshot.docs.find((d) => d.id === keeper.id)!;
+      const keeperData = keeperSnap.data();
+      batch.set(doc(deptRef, canonicalId), keeperData);
+    }
+
+    // Delete all non-canonical documents
+    for (const d of docs) {
+      if (d.id !== canonicalId) {
+        batch.delete(doc(deptRef, d.id));
+      }
+    }
+  }
+
+  await batch.commit();
+
+  // Update any members that reference old department IDs
+  const membersRef = collection(db, getChurchPath(churchId), 'members');
+  const membersSnap = await getDocs(membersRef);
+  if (membersSnap.empty) return;
+
+  // Build a map of old doc IDs to canonical IDs
+  const idMap = new Map<string, string>();
+  for (const [name, docs] of byName) {
+    const canonicalId = deptSlug(name);
+    for (const d of docs) {
+      if (d.id !== canonicalId) {
+        idMap.set(d.id, canonicalId);
+      }
+    }
+  }
+
+  if (idMap.size === 0) return;
+
+  const memberBatch = writeBatch(db);
+  let memberUpdates = 0;
+  membersSnap.docs.forEach((mDoc) => {
+    const data = mDoc.data();
+    const oldDeptId = data.departmentId as string;
+    if (idMap.has(oldDeptId)) {
+      memberBatch.update(doc(membersRef, mDoc.id), { departmentId: idMap.get(oldDeptId) });
+      memberUpdates++;
+    }
+  });
+
+  if (memberUpdates > 0) {
+    await memberBatch.commit();
   }
 }
 
